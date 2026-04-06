@@ -13,7 +13,6 @@ const DEFAULT_SETTINGS = {
   overlay_opacity: 0.85,
   font_size: 16,
   max_lines: 5,
-  show_original: true,
   translation_mode: 'soniox',
   custom_context: null,
   elevenlabs_api_key: '',

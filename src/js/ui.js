@@ -1,13 +1,14 @@
 /**
- * Transcript UI — continuous paragraph flow display with speaker diarization
- * 
- * Design: All text flows as one continuous paragraph.
- * - Translated text: white (primary color)
- * - Original text (pending translation): cyan/accent color  
- * - Provisional text (being recognized): dimmed
- * - Speaker labels: shown when speaker changes (e.g. "Speaker 1:")
- * - Language badges: shown when detected language changes (e.g. "🇯🇵 JA")
- * - Confidence: low-confidence segments highlighted
+ * Transcript UI — card-based display with speaker diarization
+ *
+ * Design: Each utterance renders as a card with original + translation stacked.
+ * - Cards: subtle background, rounded corners
+ * - Original text: dimmed, above translation
+ * - Translation: primary color with left accent border
+ * - Provisional text: dimmed card
+ * - Speaker labels: shown when speaker changes
+ * - Language badges: shown when detected language changes
+ * - Timestamps: right-aligned in card header
  */
 
 export class TranscriptUI {
@@ -16,7 +17,6 @@ export class TranscriptUI {
         this.contentEl = null;
         this.maxChars = 1200;
         this.fontSize = 16;
-        this.viewMode = 'single'; // 'single' or 'dual'
 
         // Segments: each has { original, translation, status, speaker, language, confidence }
         this.segments = [];
@@ -33,7 +33,7 @@ export class TranscriptUI {
     /**
      * Update display settings
      */
-    configure({ maxLines, showOriginal, fontSize, fontColor, viewMode }) {
+    configure({ maxLines, fontSize, fontColor }) {
         if (maxLines !== undefined) this.maxChars = maxLines * 160;
         if (fontSize !== undefined) {
             this.fontSize = fontSize;
@@ -42,14 +42,6 @@ export class TranscriptUI {
         if (fontColor !== undefined) {
             this.fontColor = fontColor;
             this.container.style.setProperty('--transcript-font-color', fontColor);
-        }
-        if (viewMode !== undefined) {
-            this.viewMode = viewMode;
-            const overlay = document.getElementById('overlay-view');
-            if (overlay) {
-                overlay.classList.toggle('dual-view', viewMode === 'dual');
-            }
-            this._render();
         }
     }
 
@@ -160,7 +152,7 @@ export class TranscriptUI {
       </div>
     `;
         this.segments = [];
-        this.sessionLog = [];
+        // sessionLog is NOT cleared here — use clearSession() explicitly after saving
         this.provisionalText = '';
         this.provisionalSpeaker = null;
         this.provisionalLanguage = null;
@@ -219,47 +211,16 @@ export class TranscriptUI {
     }
 
     /**
-     * Get transcript as plain text for copying
+     * Get full session text as plain text (from sessionLog, never trimmed)
      */
-    getPlainText() {
+    getFullPlainText() {
         let lines = [];
-        for (const seg of this.segments) {
+        for (const seg of this.sessionLog) {
             if (seg.original) lines.push(seg.original);
             if (seg.translation) lines.push(seg.translation);
             if (seg.original || seg.translation) lines.push('');
         }
         if (this.provisionalText) lines.push(this.provisionalText);
-        return lines.join('\n').trim();
-    }
-
-    /**
-     * Get formatted content for saving to file (markdown with metadata)
-     */
-    getFormattedContent(metadata = {}) {
-        if (this.segments.length === 0) return null;
-
-        const lines = [];
-
-        // Metadata header
-        lines.push('---');
-        lines.push(`date: ${new Date().toISOString()}`);
-        if (metadata.model) lines.push(`model: ${metadata.model}`);
-        if (metadata.sourceLang) lines.push(`source_language: ${metadata.sourceLang}`);
-        if (metadata.targetLang) lines.push(`target_language: ${metadata.targetLang}`);
-        if (metadata.duration) lines.push(`recording_duration: ${metadata.duration}`);
-        if (metadata.audioSource) lines.push(`audio_source: ${metadata.audioSource}`);
-        lines.push(`segments: ${this.segments.length}`);
-        lines.push('---');
-        lines.push('');
-
-        // Transcript entries
-        for (const seg of this.segments) {
-            if (seg.speaker) lines.push(`**Speaker ${seg.speaker}:**`);
-            if (seg.original) lines.push(`> ${seg.original}`);
-            if (seg.translation) lines.push(seg.translation);
-            lines.push('');
-        }
-
         return lines.join('\n').trim();
     }
 
@@ -361,128 +322,74 @@ export class TranscriptUI {
     _render() {
         this._ensureContent();
         this._trimSegments();
-
-        if (this.viewMode === 'dual') {
-            this._renderDual();
-        } else {
-            this._renderSingle();
-        }
+        this._renderCards();
     }
 
-    _renderSingle() {
+    _renderCards() {
         let html = '';
         let lastRenderedSpeaker = null;
         let lastRenderedLang = null;
 
         for (const seg of this.segments) {
-            // Speaker label
-            if (seg.speaker && seg.speaker !== lastRenderedSpeaker) {
-                html += `<span class="speaker-label">Speaker ${seg.speaker}:</span> `;
-                lastRenderedSpeaker = seg.speaker;
-            }
+            const showSpeaker = seg.speaker && seg.speaker !== lastRenderedSpeaker;
+            const showLang = seg.language && seg.language !== lastRenderedLang;
 
-            // Language badge
-            if (seg.language && seg.language !== lastRenderedLang) {
-                html += `<span class="lang-badge">${this._langEmoji(seg.language)}</span> `;
-                lastRenderedLang = seg.language;
+            if (showSpeaker) lastRenderedSpeaker = seg.speaker;
+            if (showLang) lastRenderedLang = seg.language;
+
+            const time = this._formatTime(seg.createdAt);
+
+            // Card header (only if speaker or language changed)
+            let headerHtml = '';
+            if (showSpeaker || showLang) {
+                headerHtml = '<div class="seg-header">';
+                if (showSpeaker) headerHtml += `<span class="speaker-label">Speaker ${seg.speaker}</span>`;
+                if (showLang) headerHtml += `<span class="lang-badge">${this._langEmoji(seg.language)}</span>`;
+                headerHtml += `<span class="seg-time">${time}</span>`;
+                headerHtml += '</div>';
             }
 
             if (seg.status === 'translated' && seg.translation) {
                 const confidenceClass = (seg.confidence !== null && seg.confidence < 0.7) ? ' low-confidence' : '';
-                html += `<div class="seg-block">`;
-                html += `<div class="seg-translated${confidenceClass}">${this._esc(seg.translation)}</div>`;
+                html += `<div class="seg-card">`;
+                html += headerHtml;
+                html += `<div class="seg-original">${this._esc(seg.original || '')}</div>`;
+                html += `<div class="seg-translation${confidenceClass}">${this._esc(seg.translation)}</div>`;
+                html += `</div>`;
+            } else if (seg.status === 'original' && seg.original) {
+                html += `<div class="seg-card">`;
+                html += headerHtml;
+                html += `<div class="seg-original">${this._esc(seg.original)}</div>`;
+                html += `<div class="seg-translation pending">...</div>`;
                 html += `</div>`;
             }
-            // Skip 'original' segments in single mode — wait for translation
         }
 
+        // Provisional text (currently being recognized)
         if (this.provisionalText) {
+            let provHeader = '';
             if (this.provisionalSpeaker && this.provisionalSpeaker !== lastRenderedSpeaker) {
-                html += `<span class="speaker-label">Speaker ${this.provisionalSpeaker}:</span> `;
+                provHeader += `<span class="speaker-label">Speaker ${this.provisionalSpeaker}</span>`;
             }
             if (this.provisionalLanguage && this.provisionalLanguage !== lastRenderedLang) {
-                html += `<span class="lang-badge">${this._langEmoji(this.provisionalLanguage)}</span> `;
+                provHeader += `<span class="lang-badge">${this._langEmoji(this.provisionalLanguage)}</span>`;
             }
-            html += `<div class="seg-block"><div class="seg-provisional">${this._esc(this.provisionalText)}</div></div>`;
+            if (provHeader) provHeader = `<div class="seg-header">${provHeader}</div>`;
+
+            html += `<div class="seg-card seg-provisional-card">`;
+            html += provHeader;
+            html += `<div class="seg-provisional">${this._esc(this.provisionalText)}</div>`;
+            html += `</div>`;
         }
 
         this.contentEl.innerHTML = html;
         this._smartScroll(this.container.parentElement || this.container);
     }
 
-    _renderDual() {
-        // Save scroll state before re-render
-        const oldSrcPanel = this.contentEl.querySelector('.panel-source');
-        const oldTgtPanel = this.contentEl.querySelector('.panel-translation');
-        const srcScrollState = oldSrcPanel ? this._getScrollState(oldSrcPanel) : { nearBottom: true, scrollTop: 0 };
-        const tgtScrollState = oldTgtPanel ? this._getScrollState(oldTgtPanel) : { nearBottom: true, scrollTop: 0 };
-
-        let srcHtml = '';
-        let tgtHtml = '';
-        let lastSpeaker = null;
-        let lastLang = null;
-
-        for (const seg of this.segments) {
-            let speakerHtml = '';
-            if (seg.speaker && seg.speaker !== lastSpeaker) {
-                speakerHtml = `<div class="speaker-label">Speaker ${seg.speaker}:</div>`;
-                lastSpeaker = seg.speaker;
-            }
-
-            let langHtml = '';
-            if (seg.language && seg.language !== lastLang) {
-                langHtml = `<span class="lang-badge">${this._langEmoji(seg.language)}</span> `;
-                lastLang = seg.language;
-            }
-
-            if (seg.status === 'translated' && seg.translation) {
-                const confidenceClass = (seg.confidence !== null && seg.confidence < 0.7) ? ' low-confidence' : '';
-                srcHtml += speakerHtml + langHtml;
-                srcHtml += `<div class="seg-text">${this._esc(seg.original || '')}</div>`;
-                tgtHtml += speakerHtml ? '<div class="speaker-label">&nbsp;</div>' : '';
-                tgtHtml += `<div class="seg-text${confidenceClass}">${this._esc(seg.translation)}</div>`;
-            } else if (seg.status === 'original' && seg.original) {
-                srcHtml += speakerHtml + langHtml;
-                srcHtml += `<div class="seg-text pending">${this._esc(seg.original)}</div>`;
-                tgtHtml += speakerHtml ? '<div class="speaker-label">&nbsp;</div>' : '';
-                tgtHtml += `<div class="seg-text pending">...</div>`;
-            }
-        }
-
-        if (this.provisionalText) {
-            srcHtml += `<div class="seg-text pending">${this._esc(this.provisionalText)}</div>`;
-            tgtHtml += `<div class="seg-text pending">...</div>`;
-        }
-
-        this.contentEl.innerHTML = `
-            <div class="panel-source">${srcHtml}</div>
-            <div class="panel-translation">${tgtHtml}</div>
-        `;
-
-        // Restore scroll: auto-scroll if was near bottom, otherwise keep position
-        const srcPanel = this.contentEl.querySelector('.panel-source');
-        const tgtPanel = this.contentEl.querySelector('.panel-translation');
-        if (srcPanel) {
-            if (srcScrollState.nearBottom) {
-                srcPanel.scrollTop = srcPanel.scrollHeight;
-            } else {
-                srcPanel.scrollTop = srcScrollState.scrollTop;
-            }
-        }
-        if (tgtPanel) {
-            if (tgtScrollState.nearBottom) {
-                tgtPanel.scrollTop = tgtPanel.scrollHeight;
-            } else {
-                tgtPanel.scrollTop = tgtScrollState.scrollTop;
-            }
-        }
-    }
-
-    _getScrollState(el) {
-        return {
-            nearBottom: (el.scrollHeight - el.scrollTop - el.clientHeight) < 100,
-            scrollTop: el.scrollTop
-        };
+    _formatTime(timestamp) {
+        if (!timestamp) return '';
+        const d = new Date(timestamp);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
     _smartScroll(el) {

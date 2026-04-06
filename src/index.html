@@ -165,12 +165,6 @@
         <button class="color-dot" data-color="#ffd700" title="Yellow" style="background:#ffd700;"></button>
         <button class="color-dot" data-color="#00e5ff" title="Cyan" style="background:#00e5ff;"></button>
       </div>
-      <button id="btn-view-mode" class="float-btn" title="Toggle dual view">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="3" width="7" height="18" rx="1" />
-          <rect x="14" y="3" width="7" height="18" rx="1" />
-        </svg>
-      </button>
     </div>
 
     <!-- Resize Handle -->
@@ -431,8 +425,8 @@
           <!-- Endpoint Delay -->
           <div class="slider-field" id="section-endpoint-delay" style="margin-top: 12px;">
             <span class="field-label" title="Time to wait after speech stops before translating">Endpoint Delay</span>
-            <input type="range" id="range-endpoint-delay" min="500" max="3000" step="100" value="3000" />
-            <span id="endpoint-delay-value" class="range-value">3.0s</span>
+            <input type="range" id="range-endpoint-delay" min="500" max="3000" step="100" value="1500" />
+            <span id="endpoint-delay-value" class="range-value">1.5s</span>
           </div>
         </div>
 
@@ -499,10 +493,6 @@
             <input type="range" id="range-max-lines" min="2" max="15" value="5" />
             <span id="max-lines-value" class="range-value">5</span>
           </div>
-          <label class="checkbox-option" style="margin-top: 8px;">
-            <input type="checkbox" id="check-show-original" checked />
-            <span class="checkbox-label">Show original text</span>
-          </label>
         </div>
       </div>
 
@@ -623,7 +613,8 @@
           <p class="hint">Real-time speech translator for macOS & Windows</p>
         </div>
 
-        <div class="settings-section" id="section-update">
+        <!-- Updater section hidden — portable build, no auto-update -->
+        <div class="settings-section" id="section-update" style="display:none;">
           <span class="field-label">Updates</span>
           <div id="update-status" class="update-status">
             <span id="update-status-text">Click to check for updates</span>

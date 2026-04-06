@@ -77,9 +77,9 @@ class App {
         // Window position restore disabled — causes issues on Retina displays
         // await this._restoreWindowPosition();
 
-        // Check for updates (non-blocking)
+        // Check for updates (disabled — portable build)
         this._initAboutTab();
-        this._checkForUpdates();
+        // this._checkForUpdates();
 
         console.log('🌐 My Translator v0.5.0 initialized');
     }
@@ -172,11 +172,6 @@ class App {
             this._toggleCompact();
         });
 
-        // View mode toggle (dual panel)
-        document.getElementById('btn-view-mode').addEventListener('click', () => {
-            this._toggleViewMode();
-        });
-
         // Font size quick controls
         document.getElementById('btn-font-up').addEventListener('click', () => this._adjustFontSize(4));
         document.getElementById('btn-font-down').addEventListener('click', () => this._adjustFontSize(-4));
@@ -207,6 +202,7 @@ class App {
                 this.isRunning = false;
                 this._updateStartButton();
                 this._updateStatus('error');
+                this.transcriptUI.clearSession();
                 this.transcriptUI.clear();
                 this.transcriptUI.showPlaceholder();
             } finally {
@@ -226,16 +222,15 @@ class App {
             this._setSource('both');
         });
 
-        // Clear button — clears display only (auto-save happens on stop)
+        // Clear button — clears display only (session continues for save purposes)
         document.getElementById('btn-clear').addEventListener('click', async () => {
             this.transcriptUI.clear();
             this.transcriptUI.showPlaceholder();
-            this.recordingStartTime = null;
         });
 
         // Copy transcript button
         document.getElementById('btn-copy').addEventListener('click', async () => {
-            const text = this.transcriptUI.getPlainText();
+            const text = this.transcriptUI.getFullPlainText();
             if (text) {
                 await navigator.clipboard.writeText(text);
                 this._showToast('Copied to clipboard', 'success');
@@ -551,8 +546,12 @@ class App {
         // Strict language detection
         document.getElementById('check-strict-lang').checked = s.language_hints_strict || false;
 
-        // Endpoint delay
-        const endpointDelay = s.endpoint_delay || 3000;
+        // Endpoint delay — migrate old default (3000) to new default (1500)
+        if (s.endpoint_delay === 3000) {
+            s.endpoint_delay = 1500;
+            settingsManager.save(s);
+        }
+        const endpointDelay = s.endpoint_delay || 1500;
         const delaySlider = document.getElementById('range-endpoint-delay');
         if (delaySlider) delaySlider.value = endpointDelay;
         const delayValue = document.getElementById('endpoint-delay-value');
@@ -573,8 +572,6 @@ class App {
 
         document.getElementById('range-max-lines').value = s.max_lines || 5;
         document.getElementById('max-lines-value').textContent = s.max_lines || 5;
-
-        document.getElementById('check-show-original').checked = s.show_original !== false;
 
         // Custom context (rich format)
         const ctx = s.custom_context;
@@ -644,12 +641,11 @@ class App {
             language_a: document.getElementById('select-lang-a')?.value || 'ja',
             language_b: document.getElementById('select-lang-b')?.value || 'vi',
             language_hints_strict: document.getElementById('check-strict-lang')?.checked || false,
-            endpoint_delay: parseInt(document.getElementById('range-endpoint-delay')?.value || 3000),
+            endpoint_delay: parseInt(document.getElementById('range-endpoint-delay')?.value || 1500),
             audio_source: document.querySelector('input[name="audio-source"]:checked')?.value || 'system',
             overlay_opacity: parseInt(document.getElementById('range-opacity').value) / 100,
             font_size: parseInt(document.getElementById('range-font-size').value),
             max_lines: parseInt(document.getElementById('range-max-lines').value),
-            show_original: document.getElementById('check-show-original').checked,
             custom_context: null,
         };
 
@@ -718,7 +714,6 @@ class App {
         if (this.transcriptUI) {
             this.transcriptUI.configure({
                 maxLines: settings.max_lines || 5,
-                showOriginal: settings.show_original !== false,
                 fontSize: settings.font_size || 16,
             });
         }
@@ -1026,7 +1021,7 @@ class App {
             languageA: settings.language_a,
             languageB: settings.language_b,
             languageHintsStrict: settings.language_hints_strict || false,
-            endpointDelay: settings.endpoint_delay || 3000,
+            endpointDelay: settings.endpoint_delay || 1500,
         });
 
         // Start audio capture — Rust batches audio every 200ms, JS just forwards
@@ -1074,6 +1069,7 @@ class App {
             this.isRunning = false;
             this._updateStartButton();
             this._updateStatus('error');
+            this.transcriptUI.clearSession();
             this.transcriptUI.clear();
             this.transcriptUI.showPlaceholder();
             return;
@@ -1354,12 +1350,13 @@ class App {
 
         // Auto-save on stop — use full sessionLog (not trimmed display buffer)
         if (this.transcriptUI.hasSessionContent()) {
-            await this._saveTranscriptFile();
-            this.transcriptUI.clearSession();
+            const saved = await this._saveTranscriptFile();
+            if (saved) this.transcriptUI.clearSession();
         }
 
         // Reset session tracking
         this.sessionStartTime = null;
+        this.recordingStartTime = null;
     }
 
     _updateStartButton() {
@@ -1400,15 +1397,17 @@ class App {
             audioSource: this.currentSource,
         });
 
-        if (!content) return;
+        if (!content) return false;
 
         try {
             const path = await invoke('save_transcript', { content });
             const filename = path.split('/').pop();
             this._showToast(`Saved: ${filename}`, 'success');
+            return true;
         } catch (err) {
             console.error('Failed to save transcript:', err);
             this._showToast('Failed to save transcript', 'error');
+            return false;
         }
     }
 
@@ -1510,14 +1509,6 @@ class App {
             dragRegion.classList.remove('compact-hidden');
             overlay.classList.remove('compact-mode');
         }
-    }
-
-    _toggleViewMode() {
-        const isDual = this.transcriptUI.viewMode === 'dual';
-        const newMode = isDual ? 'single' : 'dual';
-        this.transcriptUI.configure({ viewMode: newMode });
-        const btn = document.getElementById('btn-view-mode');
-        if (btn) btn.classList.toggle('active', newMode === 'dual');
     }
 
     _adjustFontSize(delta) {
