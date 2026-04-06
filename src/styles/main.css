@@ -1885,3 +1885,60 @@ input[type="range"]::-webkit-slider-thumb:hover {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 2px;
 }
+
+/* AI Summary section in session viewer */
+.session-summary-section {
+  border-top: 1px solid var(--border-light);
+  padding: 12px;
+  flex-shrink: 0;
+}
+
+.session-summary-header {
+  margin-bottom: 8px;
+}
+
+.session-summary-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim, rgba(255, 255, 255, 0.5));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.session-summary-block {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.session-summary-block:last-child {
+  margin-bottom: 0;
+}
+
+.session-summary-block strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 10px;
+  color: var(--text-dim, rgba(255, 255, 255, 0.4));
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.session-summary-block p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.session-copy-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.session-copy-btn:disabled:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+}

@@ -64,6 +64,12 @@ pub struct Settings {
     pub google_tts_voice: String,
     /// Google TTS speaking rate
     pub google_tts_speed: f64,
+    /// AI summary endpoint URL (OpenAI-compatible)
+    pub ai_endpoint: String,
+    /// AI summary API key
+    pub ai_api_key: String,
+    /// AI summary model name
+    pub ai_model: String,
 }
 
 impl Default for Settings {
@@ -90,6 +96,9 @@ impl Default for Settings {
             google_tts_api_key: String::new(),
             google_tts_voice: "vi-VN-Chirp3-HD-Aoede".to_string(),
             google_tts_speed: 1.0,
+            ai_endpoint: String::new(),
+            ai_api_key: String::new(),
+            ai_model: String::new(),
         }
     }
 }

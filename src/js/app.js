@@ -11,6 +11,7 @@ import { googleTTS } from './google-tts.js';
 import { edgeTTSRust } from './edge-tts.js';
 import { audioPlayer } from './audio-player.js';
 import { updater } from './updater.js';
+import { aiSummary } from './ai-summary.js';
 
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWindow } = window.__TAURI__.window;
@@ -132,6 +133,9 @@ class App {
 
         // Back from sessions
         document.getElementById('btn-sessions-back').addEventListener('click', () => {
+            // Cancel any in-flight summary request when leaving sessions view
+            if (this._summarizeController) { this._summarizeController.abort(); this._summarizeController = null; }
+            this._isSummarizing = false;
             this._showView('overlay');
         });
 
@@ -139,6 +143,12 @@ class App {
         document.getElementById('btn-session-back-to-list').addEventListener('click', () => {
             document.getElementById('sessions-list-panel').style.display = '';
             document.getElementById('session-viewer').style.display = 'none';
+            const summarySection = document.getElementById('session-summary-section');
+            if (summarySection) summarySection.style.display = 'none';
+            this._currentSessionText = null;
+            // Cancel any in-flight summary request
+            if (this._summarizeController) { this._summarizeController.abort(); this._summarizeController = null; }
+            this._isSummarizing = false;
         });
 
         // Copy session content
@@ -148,6 +158,11 @@ class App {
                 await navigator.clipboard.writeText(content);
                 this._showToast('Copied to clipboard', 'success');
             }
+        });
+
+        // Summarize session with AI
+        document.getElementById('btn-session-summarize')?.addEventListener('click', () => {
+            this._summarizeSession();
         });
 
         // Close button (overlay)
@@ -321,6 +336,11 @@ class App {
 
         document.getElementById('btn-toggle-google-key')?.addEventListener('click', () => {
             const input = document.getElementById('input-google-tts-key');
+            input.type = input.type === 'password' ? 'text' : 'password';
+        });
+
+        document.getElementById('btn-toggle-ai-key')?.addEventListener('click', () => {
+            const input = document.getElementById('input-ai-api-key');
             input.type = input.type === 'password' ? 'text' : 'password';
         });
 
@@ -627,6 +647,14 @@ class App {
             providerSelect.value = s.tts_provider || 'edge';
             this._updateTTSProviderUI(providerSelect.value);
         }
+
+        // AI settings
+        const aiEndpoint = document.getElementById('input-ai-endpoint');
+        if (aiEndpoint) aiEndpoint.value = s.ai_endpoint || '';
+        const aiApiKey = document.getElementById('input-ai-api-key');
+        if (aiApiKey) aiApiKey.value = s.ai_api_key || '';
+        const aiModel = document.getElementById('input-ai-model');
+        if (aiModel) aiModel.value = s.ai_model || '';
     }
 
     async _saveSettingsFromForm() {
@@ -691,6 +719,11 @@ class App {
         settings.google_tts_voice = document.getElementById('select-google-voice')?.value || 'vi-VN-Chirp3-HD-Aoede';
         settings.google_tts_speed = parseFloat(document.getElementById('range-google-speed')?.value || 1.0);
         settings.tts_enabled = false;
+
+        // AI settings
+        settings.ai_endpoint = document.getElementById('input-ai-endpoint')?.value.trim() || '';
+        settings.ai_api_key = document.getElementById('input-ai-api-key')?.value.trim() || '';
+        settings.ai_model = document.getElementById('input-ai-model')?.value.trim() || '';
 
         try {
             await settingsManager.save(settings);
@@ -1625,17 +1658,89 @@ class App {
         const viewer = document.getElementById('session-viewer');
         const title = document.getElementById('session-viewer-title');
         const content = document.getElementById('session-viewer-content');
+        const summarySection = document.getElementById('session-summary-section');
 
         if (listPanel) listPanel.style.display = 'none';
         if (viewer) viewer.style.display = '';
         if (title) title.textContent = filename.replace('.md', '').replace('_', ' ');
         if (content) content.textContent = 'Loading...';
+        if (summarySection) summarySection.style.display = 'none';
+        this._currentSessionText = null;
 
         try {
             const text = await invoke('read_transcript', { filename });
             if (content) content.textContent = text;
+            this._currentSessionText = text;
         } catch (err) {
             if (content) content.textContent = `Error loading session: ${err}`;
+        }
+
+        // Enable/disable summary button based on AI config
+        const s = settingsManager.get();
+        const summarizeBtn = document.getElementById('btn-session-summarize');
+        if (summarizeBtn) {
+            const configured = !!(s.ai_endpoint && s.ai_api_key && s.ai_model);
+            summarizeBtn.disabled = !configured;
+            summarizeBtn.title = configured ? 'Summarize with AI' : 'Configure AI in Settings first';
+        }
+    }
+
+    async _summarizeSession() {
+        if (this._isSummarizing) return;
+        const s = settingsManager.get();
+        if (!s.ai_endpoint || !s.ai_api_key || !s.ai_model) {
+            this._showToast('Configure AI settings first (Settings → AI tab)', 'error');
+            return;
+        }
+        if (!this._currentSessionText) return;
+
+        const btn = document.getElementById('btn-session-summarize');
+        const section = document.getElementById('session-summary-section');
+        const originalEl = document.getElementById('session-summary-original');
+        const translatedEl = document.getElementById('session-summary-translated');
+
+        // Loading state
+        this._isSummarizing = true;
+        this._summarizeController = new AbortController();
+        if (btn) { btn.disabled = true; btn.textContent = 'Summarizing...'; }
+        if (section) section.style.display = '';
+        if (originalEl) originalEl.textContent = 'Generating summary...';
+        if (translatedEl) translatedEl.textContent = '';
+
+        try {
+            const result = await aiSummary.summarize(this._currentSessionText, {
+                endpoint: s.ai_endpoint,
+                apiKey: s.ai_api_key,
+                model: s.ai_model,
+                signal: this._summarizeController.signal,
+            });
+
+            if (originalEl) {
+                originalEl.innerHTML = '';
+                const origLabel = document.createElement('strong');
+                origLabel.textContent = 'Original';
+                const origText = document.createElement('p');
+                origText.textContent = result.original;
+                originalEl.append(origLabel, origText);
+            }
+            if (translatedEl) {
+                translatedEl.innerHTML = '';
+                const transLabel = document.createElement('strong');
+                transLabel.textContent = 'Translated';
+                const transText = document.createElement('p');
+                transText.textContent = result.translated;
+                translatedEl.append(transLabel, transText);
+            }
+        } catch (err) {
+            if (originalEl) originalEl.textContent = `Error: ${err.message}`;
+            if (translatedEl) translatedEl.textContent = '';
+            this._showToast(`Summary failed: ${err.message}`, 'error');
+        } finally {
+            this._isSummarizing = false;
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Summary`;
+            }
         }
     }
 
