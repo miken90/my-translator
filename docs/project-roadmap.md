@@ -4,7 +4,7 @@
 
 | Metric | Value |
 |--------|-------|
-| **Latest Version** | v0.5.1 (stable) |
+| **Latest Version** | v0.6.0 (stable) |
 | **Release Date** | 2026-04-06 |
 | **GitHub Stars** | 600+ |
 | **Active Users** | ~1,000+ monthly |
@@ -96,9 +96,24 @@
 
 ---
 
-## Near-Term Roadmap (v0.6.x — Next 4-6 Weeks)
+### v0.6.0 (2026-04-06) — AI Summary
+**Focus**: Post-session AI-powered transcript summarization  
+**Features**:
+- AI-powered session summarization via OpenAI-compatible APIs
+- New "AI" settings tab (endpoint, API key, model configuration)
+- Summary button in session viewer header
+- Inline original + translated summaries display
+- Support for any OpenAI-compatible provider (OpenAI, Anthropic, Groq, etc.)
+- Concurrent call guard, 30-second timeout, transcript truncation for large sessions
+- Error handling for invalid keys, rate limits, network failures
 
-### v0.6.0 (Target: May 2026) — Export & AI Features
+**Status**: ✅ Complete
+
+---
+
+## Near-Term Roadmap (v0.7.x — Next 4-6 Weeks)
+
+### v0.7.0 (Target: May 2026) — Export Transcripts & Audio Normalization
 
 #### Priority P1: Export Transcripts
 - **Export formats**: `.txt`, `.srt`, `.vtt`, `.md`
@@ -114,22 +129,9 @@
 - **Effort**: ~1 day
 - **Value**: High — fixes pain point for video call setups with low volume
 
-#### Priority P2: AI Summarize & Q&A (Experimental)
-- **Features**:
-  - Post-session "Review" panel
-  - Summarize transcript (via Gemini/Claude API)
-  - Q&A mode (user asks questions, LLM answers from transcript context)
-  - Export with summary
-- **Scope**: Optional, behind feature flag initially
-- **Effort**: ~2-3 days
-- **Value**: Medium-High — useful for learning/meeting notes
-- **Dependencies**: Requires Export Transcripts (P1) to function
-
 ---
 
-## Medium-Term Roadmap (v0.7.x - v0.9.x — 3-6 Months)
-
-### v0.7.0 — File Upload Mode
+## Medium-Term Roadmap (v0.8.x - v1.0 — 3-6 Months)
 - **Problem**: Users want to translate offline content (videos, recorded audio)
 - **Solution**: File picker → audio extraction → chunked Soniox processing → subtitle export
 - **UI**: New tab "File" (alongside "System", "Microphone")
@@ -218,6 +220,7 @@
 | Unified card layout (stacked original+translation) | v0.5.1 | ✅ Stable |
 | Fast endpoint delay (1500ms default) | v0.5.1 | ✅ Stable |
 | Comprehensive documentation | v0.5.1 | ✅ Complete |
+| AI session summarization (OpenAI-compatible) | v0.6.0 | ✅ Stable |
 
 ---
 
@@ -225,12 +228,11 @@
 
 | Feature | Priority | Target Version | Effort | Status |
 |---------|----------|-----------------|--------|--------|
-| Export transcripts (SRT/VTT/TXT) | P1 | v0.6 | 0.5d | 🔄 Backlog |
-| Audio normalization | P1 | v0.6 | 1d | 🔄 Backlog |
-| AI summarize & Q&A | P2 | v0.6 | 2-3d | 🔄 Backlog |
-| File upload mode | P3 | v0.7 | 5-7d | 🔄 Backlog |
-| Screen OCR translation | P4 | v0.8 | 7-10d | 🔄 Backlog |
-| Furigana (Japanese) | P3 | v0.9 | 1d | 🔄 Backlog |
+| Export transcripts (SRT/VTT/TXT) | P1 | v0.7 | 0.5d | 🔄 Backlog |
+| Audio normalization | P1 | v0.7 | 1d | 🔄 Backlog |
+| File upload mode | P2 | v0.8 | 5-7d | 🔄 Backlog |
+| Screen OCR translation | P3 | v0.9 | 7-10d | 🔄 Backlog |
+| Furigana (Japanese) | P2 | v0.9 | 1d | 🔄 Backlog |
 | Plugin system | Future | v1.1+ | TBD | 🔄 Research |
 | Mobile companion app | Future | v1.2+ | TBD | 🔄 Research |
 | Collaborative translation | Future | v1.2+ | TBD | 🔄 Research |
@@ -279,10 +281,10 @@
 
 | Version | Target Date | Focus |
 |---------|-------------|-------|
-| v0.6.0 | May 2026 | Export + Audio normalization |
-| v0.7.0 | June 2026 | File upload mode |
-| v0.8.0 | August 2026 | Screen OCR translation |
-| v0.9.0 | September 2026 | Polish & final v1.0 prep |
+| v0.6.0 | 2026-04-06 | AI session summarization |
+| v0.7.0 | May 2026 | Export + Audio normalization |
+| v0.8.0 | June 2026 | File upload mode |
+| v0.9.0 | August 2026 | Screen OCR translation |
 | v1.0.0 | October 2026 | Stable flagship release |
 
 ---

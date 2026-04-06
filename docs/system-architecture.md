@@ -55,13 +55,14 @@ My Translator is a **Tauri 2 desktop application** combining a **Rust backend** 
 ┌─────────▼──────────────────────────────────────────────────────┐
 │ External APIs (User-Configured)                                │
 ├──────────────────────────────────────────────────────────────┐ │
-│ Soniox        │ Google Cloud TTS │ ElevenLabs │ Edge TTS     │ │
-│ (STT+Trans)   │ (Premium TTS)    │ (Premium)  │ (Free)      │ │
-└──────────────┬┴──────────────────┴────────────┴─────────────┘ │
+│ Soniox        │ Google Cloud │ ElevenLabs │ Edge TTS │ AI    │ │
+│ (STT+Trans)   │ TTS          │ (Premium)  │ (Free)  │ Chat  │ │
+└──────────────┬┴──────────────┴────────────┴────────┴────────┘ │
                │
                ├─ WebSocket (Soniox STT, ElevenLabs TTS)
                ├─ REST (Google TTS)
-               └─ WebSocket (Edge TTS via Rust proxy)
+               ├─ WebSocket (Edge TTS via Rust proxy)
+               └─ REST (OpenAI-compatible AI chat for summaries)
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -526,6 +527,7 @@ Linux:
 | **TTS (Google)** | `google_tts_api_key`, `google_tts_voice`, `google_tts_speed` |
 | **TTS (ElevenLabs)** | `elevenlabs_api_key` |
 | **TTS (Edge)** | `edge_tts_voice`, `edge_tts_speed` |
+| **AI** | `ai_endpoint`, `ai_api_key`, `ai_model` |
 | **Custom Context** | `custom_context` (domain hints, translation terms) |
 
 ---
