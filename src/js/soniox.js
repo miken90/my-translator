@@ -324,15 +324,17 @@ export class SonioxClient {
             this.onConfidence?.(avgConfidence);
         }
 
-        // Emit finalized original text with speaker + language
-        if (originalText.trim()) {
-            this.onOriginal?.(originalText, speaker, language);
-        }
-
-        // Emit translation + store for context carryover
+        // Emit translation BEFORE original — when a response contains both,
+        // the translation is for the PREVIOUS segment. Emitting it first
+        // ensures it pairs with the correct pending original.
         if (translationText.trim()) {
             this.onTranslation?.(translationText);
             this._addToHistory(translationText);
+        }
+
+        // Emit finalized original text with speaker + language
+        if (originalText.trim()) {
+            this.onOriginal?.(originalText, speaker, language);
         }
 
         // Emit provisional text with speaker + language

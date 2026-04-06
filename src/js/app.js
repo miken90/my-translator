@@ -33,6 +33,7 @@ class App {
         this.ttsEnabled = false;  // TTS runtime toggle
         this.isPinned = true;     // Always-on-top state
         this.isCompact = false;   // Compact mode (hide control bar)
+        this._autoSaveTimer = null; // Periodic auto-save interval
     }
 
     async init() {
@@ -202,9 +203,6 @@ class App {
                 this.isRunning = false;
                 this._updateStartButton();
                 this._updateStatus('error');
-                this.transcriptUI.clearSession();
-                this.transcriptUI.clear();
-                this.transcriptUI.showPlaceholder();
             } finally {
                 this.isStarting = false;
             }
@@ -1006,6 +1004,9 @@ class App {
             tts.connect();
             audioPlayer.resume();
         }
+
+        // Start periodic auto-save (every 2 min)
+        this._startAutoSave();
     }
 
     async _startSonioxMode(settings) {
@@ -1348,10 +1349,16 @@ class App {
 
         audioPlayer.stop();
 
-        // Auto-save on stop — use full sessionLog (not trimmed display buffer)
+        // Stop periodic auto-save
+        this._stopAutoSave();
+
+        // Final save on stop — use full sessionLog (not trimmed display buffer)
         if (this.transcriptUI.hasSessionContent()) {
             const saved = await this._saveTranscriptFile();
-            if (saved) this.transcriptUI.clearSession();
+            if (saved) {
+                this.transcriptUI.clearSession();
+                this._cleanupTempTranscript(); // Remove temp file after final save
+            }
         }
 
         // Reset session tracking
@@ -1408,6 +1415,47 @@ class App {
             console.error('Failed to save transcript:', err);
             this._showToast('Failed to save transcript', 'error');
             return false;
+        }
+    }
+
+    // ─── Periodic Auto-Save ───────────────────────────────────
+
+    _startAutoSave() {
+        this._stopAutoSave();
+        const FLUSH_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+        this._autoSaveTimer = setInterval(() => this._flushTempTranscript(), FLUSH_INTERVAL_MS);
+    }
+
+    _stopAutoSave() {
+        if (this._autoSaveTimer) {
+            clearInterval(this._autoSaveTimer);
+            this._autoSaveTimer = null;
+        }
+    }
+
+    async _flushTempTranscript() {
+        if (!this.transcriptUI.hasSessionContent()) return;
+        const content = this.transcriptUI.getFullSessionText({
+            model: this.translationMode === 'soniox' ? 'Soniox Cloud API' : 'Local MLX Whisper',
+            sourceLang: this.sessionSourceLang,
+            targetLang: this.sessionTargetLang,
+            duration: this._formatDuration(Date.now() - (this.recordingStartTime || Date.now())),
+            mode: this.sessionMode,
+            audioSource: this.currentSource,
+        });
+        if (!content) return;
+        try {
+            await invoke('save_transcript_temp', { content });
+        } catch (err) {
+            console.error('[AutoSave] Failed to flush temp transcript:', err);
+        }
+    }
+
+    async _cleanupTempTranscript() {
+        try {
+            await invoke('delete_transcript_temp');
+        } catch (err) {
+            // ignore — file may not exist
         }
     }
 

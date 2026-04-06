@@ -34,20 +34,8 @@ impl SystemAudioCapture {
         let own_pid = std::process::id();
 
         std::thread::spawn(move || {
-            // Try ALAC first (Windows 10 20H2+ — excludes own process audio)
-            match start_app_loopback(own_pid, sender.clone(), is_capturing.clone()) {
-                Ok(()) => {
-                    // ALAC path completed normally
-                }
-                Err(e) => {
-                    eprintln!(
-                        "[wasapi] Application Loopback (ALAC) not available: {}. \
-                         Falling back to legacy WASAPI loopback.",
-                        e
-                    );
-                    start_legacy_loopback(sender, is_capturing);
-                }
-            }
+            // Skip ALAC — go straight to legacy loopback for stability
+            start_legacy_loopback(sender, is_capturing);
         });
 
         Ok(receiver)
@@ -96,7 +84,7 @@ use windows::Win32::Media::Audio::{
 use windows::Win32::System::Com::{
     CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_ALL, COINIT_MULTITHREADED,
 };
-use windows::core::{implement, IUnknown, PCWSTR};
+use windows::core::{implement, Interface, IUnknown, PCWSTR};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COM completion handler for ActivateAudioInterfaceAsync
@@ -115,7 +103,7 @@ impl IActivateAudioInterfaceCompletionHandler_Impl for CompletionHandler_Impl {
         let result: Result<IAudioClient, String> = (|| {
             let op =
                 activate_operation.ok_or_else(|| "No operation provided".to_string())?;
-            let mut hr = windows::Win32::Foundation::HRESULT(0);
+            let mut hr = windows::core::HRESULT(0);
             let mut activated: Option<IUnknown> = None;
             unsafe {
                 op.GetActivateResult(&mut hr, &mut activated)

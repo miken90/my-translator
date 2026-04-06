@@ -31,6 +31,28 @@ pub fn save_transcript(app: AppHandle, content: String) -> Result<String, String
     Ok(filepath.to_string_lossy().to_string())
 }
 
+/// Save in-progress transcript to a temp file (overwritten each flush)
+#[tauri::command]
+pub fn save_transcript_temp(app: AppHandle, content: String) -> Result<(), String> {
+    let dir = transcript_dir(&app)?;
+    let filepath = dir.join("_recording.md");
+    fs::write(&filepath, content)
+        .map_err(|e| format!("Failed to save temp transcript: {}", e))?;
+    Ok(())
+}
+
+/// Delete the temp transcript file after final save
+#[tauri::command]
+pub fn delete_transcript_temp(app: AppHandle) -> Result<(), String> {
+    let dir = transcript_dir(&app)?;
+    let filepath = dir.join("_recording.md");
+    if filepath.exists() {
+        fs::remove_file(&filepath)
+            .map_err(|e| format!("Failed to delete temp transcript: {}", e))?;
+    }
+    Ok(())
+}
+
 /// Open the transcript directory in the system file manager
 /// macOS: Finder, Windows: Explorer
 #[tauri::command]
@@ -69,7 +91,7 @@ pub fn list_transcripts(app: AppHandle) -> Result<Vec<TranscriptEntry>, String> 
         .filter_map(|entry| {
             let entry = entry.ok()?;
             let filename = entry.file_name().to_string_lossy().to_string();
-            if !filename.ends_with(".md") {
+            if !filename.ends_with(".md") || filename == "_recording.md" {
                 return None;
             }
             let path = entry.path().to_string_lossy().to_string();

@@ -28,7 +28,6 @@ pub fn run() {
         .setup(|app| {
             #[cfg(desktop)]
             {
-                app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
                 app.handle().plugin(tauri_plugin_process::init())?;
             }
             Ok(())
@@ -49,6 +48,8 @@ pub fn run() {
             commands::audio::stop_capture,
             commands::audio::check_permissions,
             commands::transcript::save_transcript,
+            commands::transcript::save_transcript_temp,
+            commands::transcript::delete_transcript_temp,
             commands::transcript::open_transcript_dir,
             commands::transcript::list_transcripts,
             commands::transcript::read_transcript,
