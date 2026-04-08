@@ -4,8 +4,8 @@
 
 | Metric | Value |
 |--------|-------|
-| **Latest Version** | v0.6.0 (stable) |
-| **Release Date** | 2026-04-06 |
+| **Latest Version** | v0.5.4 (stable) |
+| **Release Date** | 2026-04-08 |
 | **GitHub Stars** | 600+ |
 | **Active Users** | ~1,000+ monthly |
 | **Platforms** | macOS (ARM+Intel), Windows |
@@ -106,6 +106,19 @@
 - Support for any OpenAI-compatible provider (OpenAI, Anthropic, Groq, etc.)
 - Concurrent call guard, 30-second timeout, transcript truncation for large sessions
 - Error handling for invalid keys, rate limits, network failures
+
+**Status**: ✅ Complete
+
+---
+
+### v0.5.4 (2026-04-08) — Segment Pairing Fix & Faster Translation
+**Focus**: Fix translation-original mismatches in long meetings, reduce latency  
+**Features**:
+- Fixed LIFO matching for correct translation-original pairing
+- Monotonic segment IDs prevent sessionLog collision
+- 2-tier stale cleanup (mark 10s, remove 60s) prevents memory leak
+- Audio batch interval reduced 200ms → 100ms for faster translation
+- Stale segments display with strike-through UX
 
 **Status**: ✅ Complete
 
@@ -221,6 +234,8 @@
 | Fast endpoint delay (1500ms default) | v0.5.1 | ✅ Stable |
 | Comprehensive documentation | v0.5.1 | ✅ Complete |
 | AI session summarization (OpenAI-compatible) | v0.6.0 | ✅ Stable |
+| Segment pairing fix (LIFO + monotonic IDs) | v0.5.4 | ✅ Stable |
+| Faster audio batching (100ms) | v0.5.4 | ✅ Stable |
 
 ---
 

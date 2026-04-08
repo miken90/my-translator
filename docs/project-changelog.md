@@ -40,6 +40,24 @@ All notable changes to My Translator are documented here. Format follows [Keep a
 
 ---
 
+## [v0.5.4] — 2026-04-08
+
+### Fixed
+- Fixed original text and translation mismatched during long meetings
+  - Switched from FIFO to LIFO matching for translation-original pairing
+  - Added monotonic segment IDs to prevent sessionLog collision
+  - 2-tier stale cleanup: mark stale at 10s (dimmed), remove at 60s (was: delete at 10s)
+  - Display trimming now only removes translated segments, never pending originals
+- Stale segments show strike-through instead of perpetual "..." pending indicator
+
+### Changed
+- Audio batch interval reduced from 200ms to 100ms for faster translation response
+- Buffer capacity adjusted (32KB → 16KB) to match new batch interval
+
+**Status**: ✅ Complete
+
+---
+
 ## [v0.5.1] — 2026-04-06
 
 ### Added

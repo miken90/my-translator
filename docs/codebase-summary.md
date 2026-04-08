@@ -96,7 +96,7 @@ Wires all subsystems: settings, UI, Soniox, audio capture, TTS providers, auto-u
 **Dependencies**: Tauri IPC, TranscriptUI, SonioxClient, all TTS providers, audioPlayer, updater, settingsManager
 
 #### **ui.js** (556 LOC) — TranscriptUI Rendering
-Renders transcript segments into DOM. Handles unified card layout with original + translation stacked, smart scrolling, font sizing.
+Renders transcript segments into DOM. Handles unified card layout with original + translation stacked, smart scrolling, font sizing. Uses **monotonic segment IDs** (`_nextSegId`) for reliable sessionLog matching. Translation matching uses **LIFO** (most recent pending original) instead of FIFO. 2-tier stale cleanup: mark at 10s, remove at 60s; stale cards rendered with strike-through.
 
 **Key class**:
 - `TranscriptUI(containerElement)` — Manages DOM rendering
@@ -222,7 +222,7 @@ Tauri commands for starting/stopping audio capture.
 - `stop_capture()` — Stops audio
 - `check_permissions()` — Queries microphone permission status
 
-**Implementation**: Routes to appropriate audio module, sends PCM chunks via Tauri event.
+**Implementation**: Routes to appropriate audio module, sends PCM chunks via Tauri event. Audio batch interval: **100ms**, buffer capacity: **16KB**.
 
 #### **commands/settings.rs** (32 LOC) — Settings IPC Commands
 Tauri commands for getting/saving settings.
@@ -361,5 +361,5 @@ Speaker output
 
 ---
 
-**Document updated**: 2026-04-06  
+**Document updated**: 2026-04-08  
 **Next review**: After major refactoring or architecture changes

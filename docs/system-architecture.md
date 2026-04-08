@@ -676,6 +676,6 @@ User speaks → System Audio → Audio Capture (Rust)
 
 ---
 
-**Document updated**: 2026-04-06  
-**Diagrams updated**: 2026-04-06  
+**Document updated**: 2026-04-08  
+**Diagrams updated**: 2026-04-08  
 **Next review**: After major architecture changes
