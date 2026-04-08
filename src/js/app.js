@@ -1058,7 +1058,7 @@ class App {
             endpointDelay: settings.endpoint_delay || 1500,
         });
 
-        // Start audio capture — Rust batches audio every 200ms, JS just forwards
+        // Start audio capture — Rust batches audio every 100ms, JS just forwards
         try {
             let audioChunkCount = 0;
 

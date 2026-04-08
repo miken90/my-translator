@@ -581,6 +581,15 @@ body {
   border-left-color: rgba(255, 255, 255, 0.1);
 }
 
+.seg-card.seg-stale {
+  opacity: 0.4;
+}
+
+.seg-stale-text {
+  text-decoration: line-through;
+  font-style: italic;
+}
+
 .seg-provisional-card {
   opacity: 0.6;
 }

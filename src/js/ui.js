@@ -17,8 +17,9 @@ export class TranscriptUI {
         this.contentEl = null;
         this.maxChars = 1200;
         this.fontSize = 16;
+        this._nextSegId = 1; // Monotonic counter for unique segment IDs
 
-        // Segments: each has { original, translation, status, speaker, language, confidence }
+        // Segments: each has { id, original, translation, status, speaker, language, confidence }
         this.segments = [];
         // sessionLog: parallel array — never trimmed, holds complete session history
         this.sessionLog = [];
@@ -50,7 +51,9 @@ export class TranscriptUI {
      */
     addOriginal(text, speaker, language) {
         this._removeListening();
+        const segId = this._nextSegId++;
         const seg = {
+            id: segId,
             original: text,
             translation: null,
             status: 'original',
@@ -62,6 +65,7 @@ export class TranscriptUI {
         this.segments.push(seg);
         // Also push a separate copy to sessionLog (never trimmed)
         this.sessionLog.push({
+            id: segId,
             original: text,
             translation: null,
             status: 'original',
@@ -77,16 +81,24 @@ export class TranscriptUI {
     }
 
     /**
-     * Apply translation to the oldest untranslated segment
+     * Apply translation to the most recent untranslated segment (LIFO).
+     * Soniox emits translation for the PREVIOUS segment before the current original,
+     * so the correct target is the newest pending original, not the oldest.
      */
     addTranslation(text) {
-        const seg = this.segments.find(s => s.status === 'original');
+        let seg = null;
+        for (let i = this.segments.length - 1; i >= 0; i--) {
+            if (this.segments[i].status === 'original') {
+                seg = this.segments[i];
+                break;
+            }
+        }
         if (seg) {
             seg.translation = text;
             seg.status = 'translated';
-            // Mirror update in sessionLog: find matching entry by createdAt
+            // Mirror update in sessionLog: find matching entry by unique id
             const logSeg = this.sessionLog.find(
-                s => s.status === 'original' && s.createdAt === seg.createdAt
+                s => s.status === 'original' && s.id === seg.id
             );
             if (logSeg) {
                 logSeg.translation = text;
@@ -357,10 +369,15 @@ export class TranscriptUI {
                 html += `<div class="seg-translation${confidenceClass}">${this._esc(seg.translation)}</div>`;
                 html += `</div>`;
             } else if (seg.status === 'original' && seg.original) {
-                html += `<div class="seg-card">`;
+                const staleClass = seg.isStale ? ' seg-stale' : '';
+                html += `<div class="seg-card${staleClass}">`;
                 html += headerHtml;
-                html += `<div class="seg-original">${this._esc(seg.original)}</div>`;
-                html += `<div class="seg-translation pending">...</div>`;
+                if (seg.isStale) {
+                    html += `<div class="seg-original seg-stale-text">${this._esc(seg.original)}</div>`;
+                } else {
+                    html += `<div class="seg-original">${this._esc(seg.original)}</div>`;
+                    html += `<div class="seg-translation pending">...</div>`;
+                }
                 html += `</div>`;
             }
         }
@@ -405,36 +422,32 @@ export class TranscriptUI {
             totalLen += (seg.translation || seg.original || '').length;
         }
         while (totalLen > this.maxChars && this.segments.length > 2) {
-            const removed = this.segments.shift();
+            // Only trim translated segments — never remove pending originals
+            const removeIdx = this.segments.findIndex(s => s.status === 'translated');
+            if (removeIdx === -1) break; // all pending, don't trim
+
+            const [removed] = this.segments.splice(removeIdx, 1);
             totalLen -= (removed.translation || removed.original || '').length;
         }
     }
 
     /**
-     * Remove stale original segments that never received translation.
-     * - Originals older than 10s are removed
-     * - Max 3 pending originals allowed (oldest dropped)
+     * Mark stale original segments that never received translation.
+     * - > 10s: mark as stale (dimmed display, still matchable)
+     * - > 60s: remove from display buffer (safety valve for long meetings)
      */
     _cleanupStaleOriginals() {
         const now = Date.now();
-        const STALE_MS = 10000; // 10 seconds
-        const MAX_PENDING = 3;
+        const STALE_MS = 10000;    // 10 seconds — mark as stale
+        const EXPIRED_MS = 60000;  // 60 seconds — remove from display
 
-        // Remove originals older than STALE_MS
         this.segments = this.segments.filter(seg => {
-            if (seg.status === 'original' && (now - seg.createdAt) > STALE_MS) {
-                return false; // drop stale
-            }
+            if (seg.status !== 'original') return true;
+            const age = now - seg.createdAt;
+            if (age > EXPIRED_MS) return false; // safety valve: drop very old pending
+            if (age > STALE_MS) seg.isStale = true;
             return true;
         });
-
-        // If still too many pending originals, drop oldest
-        let pending = this.segments.filter(s => s.status === 'original');
-        while (pending.length > MAX_PENDING) {
-            const oldest = pending.shift();
-            const idx = this.segments.indexOf(oldest);
-            if (idx !== -1) this.segments.splice(idx, 1);
-        }
     }
 
     _esc(text) {

@@ -83,8 +83,8 @@ pub fn start_capture(
     let stop_flag_clone = stop_flag.clone();
 
     std::thread::spawn(move || {
-        let mut buffer: Vec<u8> = Vec::with_capacity(32000); // ~1 sec at 16kHz s16le
-        let batch_interval = std::time::Duration::from_millis(200);
+        let mut buffer: Vec<u8> = Vec::with_capacity(16000); // ~0.5 sec at 16kHz s16le
+        let batch_interval = std::time::Duration::from_millis(100);
         let mut last_flush = std::time::Instant::now();
 
         loop {
@@ -109,7 +109,7 @@ pub fn start_capture(
                 }
             }
 
-            // Flush buffer every 200ms
+            // Flush buffer every 100ms
             if last_flush.elapsed() >= batch_interval && !buffer.is_empty() {
                 if let Err(_e) = channel.send(buffer.clone()) {
                     break; // Channel closed
