@@ -9,7 +9,12 @@
  * - Speaker labels: shown when speaker changes
  * - Language badges: shown when detected language changes
  * - Timestamps: right-aligned in card header
+ *
+ * Rendering is delegated to CardRenderer (keyed incremental DOM) so an
+ * unrelated provisional-text update never touches already-settled cards.
  */
+
+import { CardRenderer } from './transcript-card-renderer.js';
 
 export class TranscriptUI {
     constructor(container) {
@@ -29,6 +34,15 @@ export class TranscriptUI {
         this.currentSpeaker = null; // Track current speaker to detect changes
         this.currentLanguage = null; // Track current language to detect changes
         this.lastConfidence = null; // Last confidence score from Soniox
+
+        this._cardRenderer = new CardRenderer(null);
+
+        // Provisional updates are coalesced through requestAnimationFrame —
+        // rapid successive setProvisional/clearProvisional calls (Soniox can
+        // emit these many times per second) collapse into a single render
+        // per frame. addOriginal/addTranslation (finalized content) always
+        // render synchronously, unaffected by this.
+        this._provisionalRafId = null;
     }
 
     /**
@@ -105,6 +119,11 @@ export class TranscriptUI {
                 logSeg.status = 'translated';
             }
         } else {
+            // No pending original in the (possibly trimmed) display buffer —
+            // e.g. a late translation arriving after its original was already
+            // trimmed/expired. Existing behavior: record it as a standalone
+            // entry so the translation is never lost from sessionLog, even
+            // though there's nothing to visually pair it with.
             const newSeg = {
                 original: '',
                 translation: text,
@@ -119,24 +138,33 @@ export class TranscriptUI {
     }
 
     /**
-     * Update provisional (in-progress) text
+     * Update provisional (in-progress) text. Coalesced via requestAnimationFrame.
      */
     setProvisional(text, speaker, language) {
         this._removeListening();
         this.provisionalText = text;
         this.provisionalSpeaker = speaker || null;
         this.provisionalLanguage = language || null;
-        this._render();
+        this._scheduleProvisionalRender();
     }
 
     /**
-     * Clear provisional text
+     * Clear provisional text. Coalesced the same as setProvisional — it's
+     * the same transient-display stream, just clearing it.
      */
     clearProvisional() {
         this.provisionalText = '';
         this.provisionalSpeaker = null;
         this.provisionalLanguage = null;
-        this._render();
+        this._scheduleProvisionalRender();
+    }
+
+    _scheduleProvisionalRender() {
+        if (this._provisionalRafId !== null) return; // already scheduled this frame
+        this._provisionalRafId = requestAnimationFrame(() => {
+            this._provisionalRafId = null;
+            this._render();
+        });
     }
 
     /**
@@ -172,6 +200,7 @@ export class TranscriptUI {
         this.currentLanguage = null;
         this.lastConfidence = null;
         this.contentEl = null;
+        this._resetCardTracking();
     }
 
     /**
@@ -306,6 +335,7 @@ export class TranscriptUI {
         this.currentLanguage = null;
         this.lastConfidence = null;
         this.contentEl = null;
+        this._resetCardTracking();
     }
 
     /**
@@ -317,12 +347,21 @@ export class TranscriptUI {
 
     // ─── Internal ──────────────────────────────────────────
 
+    _resetCardTracking() {
+        if (this._provisionalRafId !== null) {
+            cancelAnimationFrame(this._provisionalRafId);
+            this._provisionalRafId = null;
+        }
+        this._cardRenderer.reset();
+    }
+
     _ensureContent() {
         if (!this.contentEl) {
             this.container.innerHTML = '';
             this.contentEl = document.createElement('div');
             this.contentEl.className = 'transcript-flow';
             this.container.appendChild(this.contentEl);
+            this._cardRenderer.setContentEl(this.contentEl);
         }
     }
 
@@ -334,79 +373,12 @@ export class TranscriptUI {
     _render() {
         this._ensureContent();
         this._trimSegments();
-        this._renderCards();
-    }
-
-    _renderCards() {
-        let html = '';
-        let lastRenderedSpeaker = null;
-        let lastRenderedLang = null;
-
-        for (const seg of this.segments) {
-            const showSpeaker = seg.speaker && seg.speaker !== lastRenderedSpeaker;
-            const showLang = seg.language && seg.language !== lastRenderedLang;
-
-            if (showSpeaker) lastRenderedSpeaker = seg.speaker;
-            if (showLang) lastRenderedLang = seg.language;
-
-            const time = this._formatTime(seg.createdAt);
-
-            // Card header (only if speaker or language changed)
-            let headerHtml = '';
-            if (showSpeaker || showLang) {
-                headerHtml = '<div class="seg-header">';
-                if (showSpeaker) headerHtml += `<span class="speaker-label">Speaker ${seg.speaker}</span>`;
-                if (showLang) headerHtml += `<span class="lang-badge">${this._langEmoji(seg.language)}</span>`;
-                headerHtml += `<span class="seg-time">${time}</span>`;
-                headerHtml += '</div>';
-            }
-
-            if (seg.status === 'translated' && seg.translation) {
-                const confidenceClass = (seg.confidence !== null && seg.confidence < 0.7) ? ' low-confidence' : '';
-                html += `<div class="seg-card">`;
-                html += headerHtml;
-                html += `<div class="seg-original">${this._esc(seg.original || '')}</div>`;
-                html += `<div class="seg-translation${confidenceClass}">${this._esc(seg.translation)}</div>`;
-                html += `</div>`;
-            } else if (seg.status === 'original' && seg.original) {
-                const staleClass = seg.isStale ? ' seg-stale' : '';
-                html += `<div class="seg-card${staleClass}">`;
-                html += headerHtml;
-                if (seg.isStale) {
-                    html += `<div class="seg-original seg-stale-text">${this._esc(seg.original)}</div>`;
-                } else {
-                    html += `<div class="seg-original">${this._esc(seg.original)}</div>`;
-                    html += `<div class="seg-translation pending">...</div>`;
-                }
-                html += `</div>`;
-            }
-        }
-
-        // Provisional text (currently being recognized)
-        if (this.provisionalText) {
-            let provHeader = '';
-            if (this.provisionalSpeaker && this.provisionalSpeaker !== lastRenderedSpeaker) {
-                provHeader += `<span class="speaker-label">Speaker ${this.provisionalSpeaker}</span>`;
-            }
-            if (this.provisionalLanguage && this.provisionalLanguage !== lastRenderedLang) {
-                provHeader += `<span class="lang-badge">${this._langEmoji(this.provisionalLanguage)}</span>`;
-            }
-            if (provHeader) provHeader = `<div class="seg-header">${provHeader}</div>`;
-
-            html += `<div class="seg-card seg-provisional-card">`;
-            html += provHeader;
-            html += `<div class="seg-provisional">${this._esc(this.provisionalText)}</div>`;
-            html += `</div>`;
-        }
-
-        this.contentEl.innerHTML = html;
+        this._cardRenderer.render(this.segments, {
+            text: this.provisionalText,
+            speaker: this.provisionalSpeaker,
+            language: this.provisionalLanguage,
+        });
         this._smartScroll(this.container.parentElement || this.container);
-    }
-
-    _formatTime(timestamp) {
-        if (!timestamp) return '';
-        const d = new Date(timestamp);
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
     _smartScroll(el) {
@@ -416,19 +388,35 @@ export class TranscriptUI {
         }
     }
 
+    /**
+     * Single forward pass: walk segments once, dropping 'translated' entries
+     * (in encounter order, skipping over pending 'original' ones) while the
+     * running total stays over maxChars and more than 2 segments remain.
+     * Equivalent to the old repeated findIndex+splice loop, without the
+     * repeated O(n) scans.
+     */
     _trimSegments() {
         let totalLen = 0;
         for (const seg of this.segments) {
             totalLen += (seg.translation || seg.original || '').length;
         }
-        while (totalLen > this.maxChars && this.segments.length > 2) {
-            // Only trim translated segments — never remove pending originals
-            const removeIdx = this.segments.findIndex(s => s.status === 'translated');
-            if (removeIdx === -1) break; // all pending, don't trim
+        if (totalLen <= this.maxChars) return;
 
-            const [removed] = this.segments.splice(removeIdx, 1);
-            totalLen -= (removed.translation || removed.original || '').length;
+        const kept = [];
+        let currentLen = totalLen;
+        let currentCount = this.segments.length;
+
+        for (const seg of this.segments) {
+            const canRemove = seg.status === 'translated' && currentLen > this.maxChars && currentCount > 2;
+            if (canRemove) {
+                currentLen -= (seg.translation || seg.original || '').length;
+                currentCount -= 1;
+                continue;
+            }
+            kept.push(seg);
         }
+
+        this.segments = kept;
     }
 
     /**
@@ -448,29 +436,5 @@ export class TranscriptUI {
             if (age > STALE_MS) seg.isStale = true;
             return true;
         });
-    }
-
-    _esc(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    /**
-     * Get language flag emoji + code
-     */
-    _langEmoji(langCode) {
-        const flags = {
-            'en': '🇬🇧', 'ja': '🇯🇵', 'ko': '🇰🇷', 'zh': '🇨🇳',
-            'vi': '🇻🇳', 'fr': '🇫🇷', 'de': '🇩🇪', 'es': '🇪🇸',
-            'th': '🇹🇭', 'id': '🇮🇩', 'pt': '🇵🇹', 'ru': '🇷🇺',
-            'ar': '🇸🇦', 'hi': '🇮🇳', 'it': '🇮🇹', 'nl': '🇳🇱',
-            'pl': '🇵🇱', 'tr': '🇹🇷', 'sv': '🇸🇪', 'da': '🇩🇰',
-            'no': '🇳🇴', 'fi': '🇫🇮', 'el': '🇬🇷', 'cs': '🇨🇿',
-            'ro': '🇷🇴', 'hu': '🇭🇺', 'uk': '🇺🇦', 'he': '🇮🇱',
-            'ms': '🇲🇾', 'tl': '🇵🇭', 'bn': '🇧🇩', 'ta': '🇱🇰',
-        };
-        const flag = flags[langCode] || '🌐';
-        return `${flag} ${langCode.toUpperCase()}`;
     }
 }
