@@ -6,7 +6,7 @@
 import { settingsManager } from './settings.js';
 import { TranscriptUI } from './ui.js';
 import { sonioxClient } from './soniox.js';
-import { elevenLabsTTS } from './elevenlabs-tts.js';
+import { elevenLabsTTS } from './tts/elevenlabs-tts.js';
 import { googleTTS } from './tts/google-tts.js';
 import { edgeTTSRust } from './tts/edge-tts.js';
 import { audioPlayer } from './audio-player.js';
