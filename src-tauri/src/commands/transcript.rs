@@ -53,20 +53,12 @@ pub fn delete_transcript_temp(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Open the transcript directory in the system file manager
-/// macOS: Finder, Windows: Explorer
+/// Open the transcript directory in Windows Explorer
 #[tauri::command]
 pub fn open_transcript_dir(app: AppHandle) -> Result<(), String> {
     let dir = transcript_dir(&app)?;
 
-    #[cfg(target_os = "macos")]
-    let cmd = "open";
-    #[cfg(target_os = "windows")]
-    let cmd = "explorer";
-    #[cfg(target_os = "linux")]
-    let cmd = "xdg-open";
-
-    std::process::Command::new(cmd)
+    std::process::Command::new("explorer")
         .arg(&dir)
         .spawn()
         .map_err(|e| format!("Failed to open transcript dir: {}", e))?;

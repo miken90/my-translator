@@ -38,7 +38,7 @@ pub struct Settings {
     pub max_lines: u32,
     /// Whether to show original text alongside translation
     pub show_original: bool,
-    /// Translation mode: "soniox" (cloud API) or "local" (MLX models)
+    /// Translation mode: "soniox" (cloud API)
     pub translation_mode: String,
     /// Optional custom context for better transcription
     pub custom_context: Option<CustomContext>,
