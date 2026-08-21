@@ -25,6 +25,11 @@ const SESSION_DURATION_MS = 3 * 60 * 1000;
 // Keep last N chars of translations for context carryover
 const CONTEXT_HISTORY_CHARS = 500;
 
+// Hard cap on entry count regardless of char total — defends against many
+// very short translations (e.g. rapid one-word utterances) accumulating
+// unboundedly over a multi-hour session without ever tripping the char cap.
+const MAX_HISTORY_ENTRIES = 50;
+
 // Keepalive: send every 15s to prevent timeout when no audio
 const KEEPALIVE_INTERVAL_MS = 15000;
 
@@ -459,6 +464,10 @@ export class SonioxClient {
         while (total > CONTEXT_HISTORY_CHARS && this._recentTranslations.length > 1) {
             const removed = this._recentTranslations.shift();
             total -= removed.length;
+        }
+        // Entry-count cap, independent of the char cap above.
+        while (this._recentTranslations.length > MAX_HISTORY_ENTRIES) {
+            this._recentTranslations.shift();
         }
     }
 

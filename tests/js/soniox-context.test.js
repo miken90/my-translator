@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { SonioxClient } from '../../src/js/soniox.js';
 
-// CONTEXT_HISTORY_CHARS is a module-private constant in soniox.js (currently 500).
-// Mirrored here as a characterization value — if soniox.js changes the cap,
-// update this constant to match.
+// CONTEXT_HISTORY_CHARS/MAX_HISTORY_ENTRIES are module-private constants in
+// soniox.js (currently 500 / 50). Mirrored here as characterization values —
+// if soniox.js changes either cap, update these to match.
 const CONTEXT_HISTORY_CHARS = 500;
+const MAX_HISTORY_ENTRIES = 50;
 
 describe('SonioxClient._buildContext', () => {
   let client;
@@ -80,5 +81,16 @@ describe('SonioxClient context carryover history (CONTEXT_HISTORY_CHARS cap)', (
     const huge = 'x'.repeat(CONTEXT_HISTORY_CHARS + 100);
     client._addToHistory(huge);
     expect(client._recentTranslations).toEqual([huge]);
+  });
+
+  it('bounds entry count even when many short translations never trip the char cap', () => {
+    // Many single-char entries: total length stays far under
+    // CONTEXT_HISTORY_CHARS, so only the entry-count cap can bound this.
+    for (let i = 0; i < MAX_HISTORY_ENTRIES + 20; i++) {
+      client._addToHistory('x');
+    }
+    expect(client._recentTranslations.length).toBe(MAX_HISTORY_ENTRIES);
+    // Oldest entries were dropped first — FIFO, same policy as the char cap.
+    expect(client._recentTranslations.every(t => t === 'x')).toBe(true);
   });
 });
