@@ -13,6 +13,7 @@ import { audioPlayer } from './audio-player.js';
 import { aiSummary } from './ai-summary.js';
 import { WindowManager } from './window-manager.js';
 import { SettingsFormController } from './settings-form-controller.js';
+import { SessionManager } from './session-manager.js';
 
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWindow } = window.__TAURI__.window;
@@ -42,6 +43,21 @@ class App {
             showView: (view) => this._showView(view),
             onTranslationTypeChange: (type) => this._handleTranslationTypeChange(type),
         });
+        this.sessionManager = new SessionManager({
+            transcriptUI: null, // set once TranscriptUI is created in init()
+            invoke,
+            settingsManager,
+            aiSummary,
+            showToast: (msg, type) => this._showToast(msg, type),
+            showView: (view) => this._showView(view),
+            getSessionMeta: () => ({
+                recordingStartTime: this.recordingStartTime,
+                sessionSourceLang: this.sessionSourceLang,
+                sessionTargetLang: this.sessionTargetLang,
+                sessionMode: this.sessionMode,
+                currentSource: this.currentSource,
+            }),
+        });
     }
 
     async init() {
@@ -51,6 +67,7 @@ class App {
         // Init transcript UI
         const transcriptContainer = document.getElementById('transcript-content');
         this.transcriptUI = new TranscriptUI(transcriptContainer);
+        this.sessionManager.transcriptUI = this.transcriptUI;
 
         // Apply saved settings to UI
         this._applySettings(settingsManager.get());
@@ -58,6 +75,7 @@ class App {
         // Bind event listeners
         this._bindEvents();
         this.settingsFormController.bindEvents();
+        this.sessionManager.bindEvents();
 
         // Bind keyboard shortcuts
         this._bindKeyboardShortcuts();
@@ -94,48 +112,9 @@ class App {
             this._showView('settings');
         });
 
-        // Sessions button
-        document.getElementById('btn-sessions').addEventListener('click', () => {
-            this._showView('sessions');
-        });
-
         // Back from settings
         document.getElementById('btn-back').addEventListener('click', () => {
             this._showView('overlay');
-        });
-
-        // Back from sessions
-        document.getElementById('btn-sessions-back').addEventListener('click', () => {
-            // Cancel any in-flight summary request when leaving sessions view
-            if (this._summarizeController) { this._summarizeController.abort(); this._summarizeController = null; }
-            this._isSummarizing = false;
-            this._showView('overlay');
-        });
-
-        // Back from session viewer to session list
-        document.getElementById('btn-session-back-to-list').addEventListener('click', () => {
-            document.getElementById('sessions-list-panel').style.display = '';
-            document.getElementById('session-viewer').style.display = 'none';
-            const summarySection = document.getElementById('session-summary-section');
-            if (summarySection) summarySection.style.display = 'none';
-            this._currentSessionText = null;
-            // Cancel any in-flight summary request
-            if (this._summarizeController) { this._summarizeController.abort(); this._summarizeController = null; }
-            this._isSummarizing = false;
-        });
-
-        // Copy session content
-        document.getElementById('btn-session-copy').addEventListener('click', async () => {
-            const content = document.getElementById('session-viewer-content')?.textContent || '';
-            if (content) {
-                await navigator.clipboard.writeText(content);
-                this._showToast('Copied to clipboard', 'success');
-            }
-        });
-
-        // Summarize session with AI
-        document.getElementById('btn-session-summarize')?.addEventListener('click', () => {
-            this._summarizeSession();
         });
 
         // Close button (overlay)
@@ -374,7 +353,7 @@ class App {
             this.settingsFormController.populateForm();
         }
         if (view === 'sessions') {
-            this._showSessions();
+            this.sessionManager.showSessions();
         }
     }
 
@@ -599,7 +578,7 @@ class App {
         }
 
         // Start periodic auto-save (every 2 min)
-        this._startAutoSave();
+        this.sessionManager.startAutoSave();
     }
 
     async _startSonioxMode(settings) {
@@ -670,16 +649,10 @@ class App {
         audioPlayer.stop();
 
         // Stop periodic auto-save
-        this._stopAutoSave();
+        this.sessionManager.stopAutoSave();
 
         // Final save on stop — use full sessionLog (not trimmed display buffer)
-        if (this.transcriptUI.hasSessionContent()) {
-            const saved = await this._saveTranscriptFile();
-            if (saved) {
-                this.transcriptUI.clearSession();
-                this._cleanupTempTranscript(); // Remove temp file after final save
-            }
-        }
+        await this.sessionManager.finalizeSession();
 
         // Reset session tracking
         this.sessionStartTime = null;
@@ -694,89 +667,6 @@ class App {
         btn.classList.toggle('recording', this.isRunning);
         iconPlay.style.display = this.isRunning ? 'none' : 'block';
         iconStop.style.display = this.isRunning ? 'block' : 'none';
-    }
-
-    // ─── Transcript Persistence ───────────────────────────────
-
-    _formatDuration(ms) {
-        const totalSec = Math.floor(ms / 1000);
-        const min = Math.floor(totalSec / 60);
-        const sec = totalSec % 60;
-        return `${min}m ${sec}s`;
-    }
-
-    async _saveTranscriptFile() {
-        const startMs = this.recordingStartTime || Date.now();
-        const durationMs = Date.now() - startMs;
-        const duration = this._formatDuration(durationMs);
-
-        // Use session metadata captured at start()
-        const sourceLang = this.sessionSourceLang || document.getElementById('select-source-lang')?.value || 'auto';
-        const targetLang = this.sessionTargetLang || document.getElementById('select-target-lang')?.value || 'vi';
-        const mode = this.sessionMode || 'one_way';
-
-        const content = this.transcriptUI.getFullSessionText({
-            model: 'Soniox Cloud API',
-            sourceLang,
-            targetLang,
-            duration,
-            mode,
-            audioSource: this.currentSource,
-        });
-
-        if (!content) return false;
-
-        try {
-            const path = await invoke('save_transcript', { content });
-            const filename = path.split('/').pop();
-            this._showToast(`Saved: ${filename}`, 'success');
-            return true;
-        } catch (err) {
-            console.error('Failed to save transcript:', err);
-            this._showToast('Failed to save transcript', 'error');
-            return false;
-        }
-    }
-
-    // ─── Periodic Auto-Save ───────────────────────────────────
-
-    _startAutoSave() {
-        this._stopAutoSave();
-        const FLUSH_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
-        this._autoSaveTimer = setInterval(() => this._flushTempTranscript(), FLUSH_INTERVAL_MS);
-    }
-
-    _stopAutoSave() {
-        if (this._autoSaveTimer) {
-            clearInterval(this._autoSaveTimer);
-            this._autoSaveTimer = null;
-        }
-    }
-
-    async _flushTempTranscript() {
-        if (!this.transcriptUI.hasSessionContent()) return;
-        const content = this.transcriptUI.getFullSessionText({
-            model: 'Soniox Cloud API',
-            sourceLang: this.sessionSourceLang,
-            targetLang: this.sessionTargetLang,
-            duration: this._formatDuration(Date.now() - (this.recordingStartTime || Date.now())),
-            mode: this.sessionMode,
-            audioSource: this.currentSource,
-        });
-        if (!content) return;
-        try {
-            await invoke('save_transcript_temp', { content });
-        } catch (err) {
-            console.error('[AutoSave] Failed to flush temp transcript:', err);
-        }
-    }
-
-    async _cleanupTempTranscript() {
-        try {
-            await invoke('delete_transcript_temp');
-        } catch (err) {
-            // ignore — file may not exist
-        }
     }
 
     // ─── Status ────────────────────────────────────────────
@@ -824,154 +714,6 @@ class App {
     }
 
     // ─── Toast ─────────────────────────────────────────────
-
-    // ─── Session History ───────────────────────────────────
-
-    async _showSessions() {
-        const listEl = document.getElementById('sessions-list');
-        const listPanel = document.getElementById('sessions-list-panel');
-        const viewer = document.getElementById('session-viewer');
-
-        if (listPanel) listPanel.style.display = '';
-        if (viewer) viewer.style.display = 'none';
-        if (!listEl) return;
-
-        listEl.innerHTML = '<div class="sessions-loading">Loading...</div>';
-
-        try {
-            const sessions = await invoke('list_transcripts');
-            if (sessions.length === 0) {
-                listEl.innerHTML = '<div class="sessions-empty">No saved sessions yet.</div>';
-                return;
-            }
-
-            listEl.innerHTML = sessions.map(s => {
-                const meta = this._parseSessionMeta(s);
-                return `<div class="session-item" data-filename="${this.settingsFormController.escAttr(s.filename)}">
-                    <div class="session-item-date">${meta.date}</div>
-                    <div class="session-item-meta">
-                        <span class="session-item-time">${meta.time}</span>
-                        ${meta.duration ? `<span class="session-item-duration">${meta.duration}</span>` : ''}
-                        ${meta.langPair ? `<span class="session-item-langs">${meta.langPair}</span>` : ''}
-                    </div>
-                    <div class="session-item-size">${this._formatBytes(s.size_bytes)}</div>
-                </div>`;
-            }).join('');
-
-            listEl.querySelectorAll('.session-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    this._openSession(item.dataset.filename);
-                });
-            });
-        } catch (err) {
-            listEl.innerHTML = `<div class="sessions-empty">Error: ${err}</div>`;
-        }
-    }
-
-    async _openSession(filename) {
-        const listPanel = document.getElementById('sessions-list-panel');
-        const viewer = document.getElementById('session-viewer');
-        const title = document.getElementById('session-viewer-title');
-        const content = document.getElementById('session-viewer-content');
-        const summarySection = document.getElementById('session-summary-section');
-
-        if (listPanel) listPanel.style.display = 'none';
-        if (viewer) viewer.style.display = '';
-        if (title) title.textContent = filename.replace('.md', '').replace('_', ' ');
-        if (content) content.textContent = 'Loading...';
-        if (summarySection) summarySection.style.display = 'none';
-        this._currentSessionText = null;
-
-        try {
-            const text = await invoke('read_transcript', { filename });
-            if (content) content.textContent = text;
-            this._currentSessionText = text;
-        } catch (err) {
-            if (content) content.textContent = `Error loading session: ${err}`;
-        }
-
-        // Enable/disable summary button based on AI config
-        const s = settingsManager.get();
-        const summarizeBtn = document.getElementById('btn-session-summarize');
-        if (summarizeBtn) {
-            const configured = !!(s.ai_endpoint && s.ai_api_key && s.ai_model);
-            summarizeBtn.disabled = !configured;
-            summarizeBtn.title = configured ? 'Summarize with AI' : 'Configure AI in Settings first';
-        }
-    }
-
-    async _summarizeSession() {
-        if (this._isSummarizing) return;
-        const s = settingsManager.get();
-        if (!s.ai_endpoint || !s.ai_api_key || !s.ai_model) {
-            this._showToast('Configure AI settings first (Settings → AI tab)', 'error');
-            return;
-        }
-        if (!this._currentSessionText) return;
-
-        const btn = document.getElementById('btn-session-summarize');
-        const section = document.getElementById('session-summary-section');
-        const originalEl = document.getElementById('session-summary-original');
-        const translatedEl = document.getElementById('session-summary-translated');
-
-        // Loading state
-        this._isSummarizing = true;
-        this._summarizeController = new AbortController();
-        if (btn) { btn.disabled = true; btn.textContent = 'Summarizing...'; }
-        if (section) section.style.display = '';
-        if (originalEl) originalEl.textContent = 'Generating summary...';
-        if (translatedEl) translatedEl.textContent = '';
-
-        try {
-            const result = await aiSummary.summarize(this._currentSessionText, {
-                endpoint: s.ai_endpoint,
-                apiKey: s.ai_api_key,
-                model: s.ai_model,
-                signal: this._summarizeController.signal,
-            });
-
-            if (originalEl) {
-                originalEl.innerHTML = '';
-                const origLabel = document.createElement('strong');
-                origLabel.textContent = 'Original';
-                const origText = document.createElement('p');
-                origText.textContent = result.original;
-                originalEl.append(origLabel, origText);
-            }
-            if (translatedEl) {
-                translatedEl.innerHTML = '';
-                const transLabel = document.createElement('strong');
-                transLabel.textContent = 'Translated';
-                const transText = document.createElement('p');
-                transText.textContent = result.translated;
-                translatedEl.append(transLabel, transText);
-            }
-        } catch (err) {
-            if (originalEl) originalEl.textContent = `Error: ${err.message}`;
-            if (translatedEl) translatedEl.textContent = '';
-            this._showToast(`Summary failed: ${err.message}`, 'error');
-        } finally {
-            this._isSummarizing = false;
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Summary`;
-            }
-        }
-    }
-
-    _parseSessionMeta(session) {
-        // created_at format: "2026-03-27 10:21:05"
-        const parts = (session.created_at || '').split(' ');
-        const date = parts[0] || '';
-        const time = parts[1] ? parts[1].slice(0, 5) : '';
-        return { date, time, duration: '', langPair: '' };
-    }
-
-    _formatBytes(bytes) {
-        if (bytes < 1024) return `${bytes} B`;
-        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-        return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-    }
 
     _initAboutTab() {
         // GitHub links
