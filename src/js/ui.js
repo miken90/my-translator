@@ -43,6 +43,14 @@ export class TranscriptUI {
         // per frame. addOriginal/addTranslation (finalized content) always
         // render synchronously, unaffected by this.
         this._provisionalRafId = null;
+
+        // Crash-safe logging: fired every 20 finalized segments (in addition
+        // to session-manager's own 2-minute timer) so at most ~20 utterances
+        // are lost if the app crashes mid-session. Wired by the caller (see
+        // app.js) to session-manager's temp-flush — ui.js has no Tauri
+        // access of its own.
+        this.onSegmentFlushDue = null; // () => {}
+        this._flushEverySegments = 20;
     }
 
     /**
@@ -92,6 +100,7 @@ export class TranscriptUI {
         if (language) this.currentLanguage = language;
         this._cleanupStaleOriginals();
         this._render();
+        this._maybeFlushBySegmentCount();
     }
 
     /**
@@ -133,6 +142,7 @@ export class TranscriptUI {
             };
             this.segments.push(newSeg);
             this.sessionLog.push({ ...newSeg });
+            this._maybeFlushBySegmentCount();
         }
         this._render();
     }
@@ -315,6 +325,43 @@ export class TranscriptUI {
     }
 
     /**
+     * Export text for the live/active session, from sessionLog (never the
+     * trimmed display buffer) — distinct from getFullSessionText() in that
+     * every entry carries its own timestamp (export's whole point). Format
+     * controls markdown syntax: 'md' keeps bold headers and blockquote
+     * prefixes, 'txt' is plain text.
+     */
+    getExportText(format, metadata = {}) {
+        if (this.sessionLog.length === 0) return null;
+
+        const lines = [];
+        lines.push('---');
+        const now = new Date();
+        lines.push(`date: ${now.toISOString().slice(0, 10)}`);
+        lines.push(`time: ${now.toTimeString().slice(0, 8)}`);
+        if (metadata.duration) lines.push(`duration: ${metadata.duration}`);
+        if (metadata.sourceLang) lines.push(`source_lang: ${metadata.sourceLang}`);
+        if (metadata.targetLang) lines.push(`target_lang: ${metadata.targetLang}`);
+        lines.push(`segments: ${this.sessionLog.length}`);
+        lines.push('---');
+        lines.push('');
+
+        for (const seg of this.sessionLog) {
+            const ts = seg.createdAt
+                ? new Date(seg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+                : '';
+            const speakerPart = seg.speaker ? ` Speaker ${seg.speaker}` : '';
+            const header = `[${ts}]${speakerPart}`.trim();
+            if (ts || speakerPart) lines.push(format === 'md' ? `**${header}**` : header);
+            if (seg.original) lines.push(format === 'md' ? `> ${seg.original}` : seg.original);
+            if (seg.translation) lines.push(seg.translation);
+            lines.push('');
+        }
+
+        return lines.join('\n').trim();
+    }
+
+    /**
      * Clear session log (call after saving)
      */
     clearSession() {
@@ -436,5 +483,16 @@ export class TranscriptUI {
             if (age > STALE_MS) seg.isStale = true;
             return true;
         });
+    }
+
+    /**
+     * Crash-safe logging: every 20 finalized segments, ask the caller to
+     * flush the temp transcript now (in addition to session-manager's
+     * regular 2-minute timer), bounding the worst-case loss on a crash.
+     */
+    _maybeFlushBySegmentCount() {
+        if (this.sessionLog.length > 0 && this.sessionLog.length % this._flushEverySegments === 0) {
+            this.onSegmentFlushDue?.();
+        }
     }
 }

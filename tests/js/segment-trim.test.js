@@ -78,4 +78,49 @@ describe('TranscriptUI trimming and staleness invariants', () => {
     expect(ui.segments).toHaveLength(1);
     expect(ui.segments[0].status).toBe('translated');
   });
+
+  describe('crash-safe logging: flush every 20 segments', () => {
+    it('fires onSegmentFlushDue exactly on the 20th, 40th, ... sessionLog entry', () => {
+      const flushCalls = [];
+      ui.onSegmentFlushDue = () => flushCalls.push(ui.sessionLog.length);
+
+      for (let i = 0; i < 45; i++) {
+        ui.addOriginal(`utterance ${i}`);
+      }
+
+      expect(flushCalls).toEqual([20, 40]);
+    });
+
+    it('does not fire before the first 20 segments', () => {
+      const flushCalls = [];
+      ui.onSegmentFlushDue = () => flushCalls.push(ui.sessionLog.length);
+
+      for (let i = 0; i < 19; i++) {
+        ui.addOriginal(`utterance ${i}`);
+      }
+
+      expect(flushCalls).toHaveLength(0);
+    });
+
+    it('counts orphan-translation entries (pushed via addTranslation) toward the flush cadence too', () => {
+      const flushCalls = [];
+      ui.onSegmentFlushDue = () => flushCalls.push(ui.sessionLog.length);
+
+      // 19 fully-paired original+translation cycles (each pairs in place,
+      // no new sessionLog entry beyond the original) = 19 sessionLog entries,
+      // with zero pending 'original' segments left afterward.
+      for (let i = 0; i < 19; i++) {
+        ui.addOriginal(`utterance ${i}`);
+        ui.addTranslation(`translation ${i}`);
+      }
+      expect(ui.segments.every(s => s.status === 'translated')).toBe(true);
+
+      // No pending original to pair with -> orphan path -> a genuinely new
+      // sessionLog entry, the 20th.
+      ui.addTranslation('orphan translation');
+
+      expect(ui.sessionLog).toHaveLength(20);
+      expect(flushCalls).toEqual([20]);
+    });
+  });
 });
