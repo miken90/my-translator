@@ -10,7 +10,6 @@ import { elevenLabsTTS } from './elevenlabs-tts.js';
 import { googleTTS } from './google-tts.js';
 import { edgeTTSRust } from './edge-tts.js';
 import { audioPlayer } from './audio-player.js';
-import { updater } from './updater.js';
 import { aiSummary } from './ai-summary.js';
 
 const { invoke } = window.__TAURI__.core;
@@ -21,11 +20,9 @@ class App {
         this.isRunning = false;
         this.isStarting = false; // Guard against re-entry
         this.currentSource = 'system'; // 'system' | 'microphone' | 'both'
-        this.translationMode = 'soniox'; // 'soniox' | 'local'
+        this.translationMode = 'soniox';
         this.transcriptUI = null;
         this.appWindow = getCurrentWindow();
-        this.localPipelineChannel = null;
-        this.localPipelineReady = false;
         this.recordingStartTime = null;
         this.sessionStartTime = null;  // Session start timestamp (new Date())
         this.sessionSourceLang = 'auto';
@@ -44,9 +41,6 @@ class App {
         // Init transcript UI
         const transcriptContainer = document.getElementById('transcript-content');
         this.transcriptUI = new TranscriptUI(transcriptContainer);
-
-        // Check platform — hide Local MLX on non-Apple-Silicon
-        await this._checkPlatformSupport();
 
         // Apply saved settings to UI
         this._applySettings(settingsManager.get());
@@ -76,41 +70,9 @@ class App {
             };
         }
 
-        // Window position restore disabled — causes issues on Retina displays
-        // await this._restoreWindowPosition();
-
-        // Check for updates (disabled — portable build)
         this._initAboutTab();
-        // this._checkForUpdates();
 
         console.log('🌐 My Translator v0.5.0 initialized');
-    }
-
-    async _checkPlatformSupport() {
-        try {
-            // Check if we're on macOS Apple Silicon
-            const arch = await invoke('get_platform_info');
-            const info = JSON.parse(arch);
-            this.isAppleSilicon = (info.os === 'macos' && info.arch === 'aarch64');
-        } catch {
-            // Fallback: check via navigator
-            this.isAppleSilicon = navigator.platform === 'MacIntel' &&
-                navigator.userAgent.includes('Mac OS X');
-        }
-
-        if (!this.isAppleSilicon) {
-            // Hide Local MLX option
-            const select = document.getElementById('select-translation-mode');
-            const localOption = select?.querySelector('option[value="local"]');
-            if (localOption) localOption.remove();
-
-            // Force soniox mode if user had local selected
-            const settings = settingsManager.get();
-            if (settings.translation_mode === 'local') {
-                settings.translation_mode = 'soniox';
-                settingsManager.save(settings);
-            }
-        }
     }
 
     // ─── Event Binding ──────────────────────────────────────
@@ -1024,11 +986,7 @@ class App {
             this.transcriptUI.clearProvisional();
         }
 
-        if (this.translationMode === 'local') {
-            await this._startLocalMode(settings);
-        } else {
-            await this._startSonioxMode(settings);
-        }
+        await this._startSonioxMode(settings);
 
         // Start TTS if enabled
         if (this.ttsEnabled) {
@@ -1086,267 +1044,6 @@ class App {
         }
     }
 
-    async _startLocalMode(settings) {
-        console.log('[App] Starting Local mode (MLX models)...');
-        this._updateStatus('connecting');
-
-        // Step 0: Check audio permission FIRST (before loading models)
-        try {
-            await invoke('start_capture', {
-                source: this.currentSource,
-                channel: new window.__TAURI__.core.Channel(), // dummy channel for permission check
-            });
-            await invoke('stop_capture');
-        } catch (err) {
-            console.error('[App] Audio permission check failed:', err);
-            this._showToast(`Audio permission required: ${err}`, 'error');
-            this.isRunning = false;
-            this._updateStartButton();
-            this._updateStatus('error');
-            this.transcriptUI.clearSession();
-            this.transcriptUI.clear();
-            this.transcriptUI.showPlaceholder();
-            return;
-        }
-
-        // Step 1: Check if MLX setup is complete
-        try {
-            const checkResult = await invoke('check_mlx_setup');
-            const status = JSON.parse(checkResult);
-            if (!status.ready) {
-                this._showToast('Setting up MLX models (one-time, ~5GB)...', 'success');
-                this.transcriptUI.showStatusMessage('Downloading MLX models (one-time setup)...');
-                await this._runMlxSetup();
-            }
-        } catch (err) {
-            console.warn('[App] MLX check failed (proceeding anyway):', err);
-        }
-
-        console.log('[App] MLX check passed, starting pipeline...');
-
-        // Step 1: Start pipeline FIRST (independent of audio)
-        try {
-            this._showToast('Starting local pipeline...', 'success');
-
-            this.localPipelineChannel = new window.__TAURI__.core.Channel();
-            this.localPipelineReady = false;
-
-            this.localPipelineChannel.onmessage = (msg) => {
-                let data;
-                try {
-                    data = (typeof msg === 'string') ? JSON.parse(msg) : msg;
-                } catch (e) {
-                    console.warn('[Local] JSON parse failed:', typeof msg, msg);
-                    return;
-                }
-                try {
-                    this._handleLocalPipelineResult(data);
-                } catch (e) {
-                    console.error('[Local] Handler error for type:', data?.type, e);
-                }
-            };
-
-            const sourceLangMap = {
-                'auto': 'auto', 'ja': 'Japanese', 'en': 'English',
-                'zh': 'Chinese', 'ko': 'Korean', 'vi': 'Vietnamese',
-            };
-            const sourceLang = sourceLangMap[settings.source_language] || 'Japanese';
-
-            await invoke('start_local_pipeline', {
-                sourceLang: sourceLang,
-                targetLang: settings.target_language || 'vi',
-                channel: this.localPipelineChannel,
-            });
-            console.log('[App] Local pipeline spawned');
-        } catch (err) {
-            console.error('Failed to start pipeline:', err);
-            this._showToast(`Pipeline error: ${err}`, 'error');
-            await this.stop();
-            return;
-        }
-
-        // Step 2: Start audio capture
-        try {
-            const audioChannel = new window.__TAURI__.core.Channel();
-            let audioChunkCount = 0;
-
-            audioChannel.onmessage = async (pcmData) => {
-                audioChunkCount++;
-                if (audioChunkCount <= 3 || audioChunkCount % 50 === 0) {
-                    console.log(`[Local] Audio batch #${audioChunkCount}, size:`, pcmData?.length || 0);
-                }
-                try {
-                    await invoke('send_audio_to_pipeline', { data: Array.from(new Uint8Array(pcmData)) });
-                } catch (e) {
-                    // Pipeline may not be ready yet
-                }
-            };
-
-            await invoke('start_capture', {
-                source: this.currentSource,
-                channel: audioChannel,
-            });
-            console.log('[App] Audio capture started');
-        } catch (err) {
-            console.error('Audio capture failed (pipeline still running):', err);
-            this._showToast(`Audio: ${err}. Pipeline still loading...`, 'error');
-        }
-    }
-
-    _handleLocalPipelineResult(data) {
-        switch (data.type) {
-            case 'ready':
-                this.localPipelineReady = true;
-                this._updateStatus('connected');
-                this.transcriptUI.removeStatusMessage();
-                this.transcriptUI.showListening();
-                this._showToast('Local models ready!', 'success');
-                break;
-            case 'result':
-                // Chase effect: show original first (gray), then translation (white)
-                if (data.original) {
-                    this.transcriptUI.addOriginal(data.original);
-                }
-                // Small delay for visual "chase" effect
-                setTimeout(() => {
-                if (data.translated) {
-                    this.transcriptUI.addTranslation(data.translated);
-                    this._speakIfEnabled(data.translated);
-                }
-                }, 80);
-                break;
-            case 'status':
-                const msg = data.message || 'Loading...';
-                // Status bar: show compact message (strip [pipeline] prefix)
-                const statusText = document.getElementById('status-text');
-                if (statusText) {
-                    const compact = msg.replace(/^\[pipeline\]\s*/, '');
-                    statusText.textContent = compact;
-                }
-                // Transcript area: only show loading/starting messages, not debug logs
-                if (!msg.startsWith('[pipeline]')) {
-                    this.transcriptUI.showStatusMessage(msg);
-                }
-                break;
-            case 'done':
-                this._updateStatus('disconnected');
-                break;
-        }
-    }
-
-    async _runMlxSetup() {
-        const modal = document.getElementById('setup-modal');
-        const progressFill = document.getElementById('setup-progress-fill');
-        const progressPct = document.getElementById('setup-progress-pct');
-        const statusText = document.getElementById('setup-status-text');
-        const cancelBtn = document.getElementById('btn-cancel-setup');
-
-        // Step mapping: step name → total progress weight
-        const stepWeights = { check: 5, venv: 10, packages: 35, models: 50 };
-        let totalProgress = 0;
-
-        const updateStep = (stepName, icon, isActive) => {
-            const stepEl = document.getElementById(`step-${stepName}`);
-            if (!stepEl) return;
-            stepEl.querySelector('.step-icon').textContent = icon;
-            stepEl.classList.toggle('active', isActive);
-            stepEl.classList.toggle('done', icon === '✅');
-        };
-
-        const updateProgress = (pct) => {
-            totalProgress = Math.min(100, pct);
-            progressFill.style.width = totalProgress + '%';
-            progressPct.textContent = Math.round(totalProgress) + '%';
-        };
-
-        // Show modal
-        modal.style.display = 'flex';
-
-        return new Promise((resolve, reject) => {
-            const channel = new window.__TAURI__.core.Channel();
-
-            // Cancel handler
-            const onCancel = () => {
-                modal.style.display = 'none';
-                reject(new Error('Setup cancelled'));
-            };
-            cancelBtn.addEventListener('click', onCancel, { once: true });
-
-            channel.onmessage = (msg) => {
-                let data;
-                try {
-                    data = (typeof msg === 'string') ? JSON.parse(msg) : msg;
-                } catch (e) {
-                    return;
-                }
-
-                switch (data.type) {
-                    case 'progress':
-                        statusText.textContent = data.message || 'Working...';
-
-                        // Update step indicators
-                        if (data.step) {
-                            // Mark previous steps as done
-                            const steps = ['check', 'venv', 'packages', 'models'];
-                            const currentIdx = steps.indexOf(data.step);
-                            steps.forEach((s, i) => {
-                                if (i < currentIdx) updateStep(s, '✅', false);
-                                else if (i === currentIdx) updateStep(s, '🔄', true);
-                            });
-
-                            if (data.done) {
-                                updateStep(data.step, '✅', false);
-                            }
-
-                            // Calculate overall progress
-                            let pct = 0;
-                            steps.forEach((s, i) => {
-                                if (i < currentIdx) pct += stepWeights[s];
-                                else if (i === currentIdx) {
-                                    pct += (data.progress || 0) / 100 * stepWeights[s];
-                                }
-                            });
-                            updateProgress(pct);
-                        }
-                        break;
-
-                    case 'complete':
-                        updateProgress(100);
-                        statusText.textContent = '✅ ' + (data.message || 'Setup complete!');
-                        ['check', 'venv', 'packages', 'models'].forEach(s => updateStep(s, '✅', false));
-
-                        // Close modal after brief delay
-                        setTimeout(() => {
-                            modal.style.display = 'none';
-                            resolve();
-                        }, 1000);
-                        break;
-
-                    case 'error':
-                        statusText.textContent = '❌ ' + (data.message || 'Setup failed');
-                        cancelBtn.textContent = 'Close';
-                        cancelBtn.removeEventListener('click', onCancel);
-                        cancelBtn.addEventListener('click', () => {
-                            modal.style.display = 'none';
-                            reject(new Error(data.message));
-                        }, { once: true });
-                        break;
-
-                    case 'log':
-                        console.log('[MLX Setup]', data.message);
-                        break;
-                }
-            };
-
-            invoke('run_mlx_setup', { channel })
-                .catch(err => {
-                    statusText.textContent = '❌ ' + err;
-                    modal.style.display = 'none';
-                    reject(err);
-                });
-        });
-    }
-
     async stop() {
         this.isRunning = false;
         this._updateStartButton();
@@ -1358,20 +1055,8 @@ class App {
             console.error('Failed to stop audio capture:', err);
         }
 
-        if (this.translationMode === 'local') {
-            // Stop local pipeline
-            try {
-                await invoke('stop_local_pipeline');
-            } catch (err) {
-                console.error('Failed to stop local pipeline:', err);
-            }
-            this.localPipelineReady = false;
-            this.transcriptUI.removeStatusMessage();
-            this._updateStatus('disconnected');
-        } else {
-            // Disconnect Soniox
-            sonioxClient.disconnect();
-        }
+        // Disconnect Soniox
+        sonioxClient.disconnect();
 
         // Keep transcript visible — don't clear
         this.transcriptUI.clearProvisional();
@@ -1429,7 +1114,7 @@ class App {
         const mode = this.sessionMode || 'one_way';
 
         const content = this.transcriptUI.getFullSessionText({
-            model: this.translationMode === 'soniox' ? 'Soniox Cloud API' : 'Local MLX Whisper',
+            model: 'Soniox Cloud API',
             sourceLang,
             targetLang,
             duration,
@@ -1469,7 +1154,7 @@ class App {
     async _flushTempTranscript() {
         if (!this.transcriptUI.hasSessionContent()) return;
         const content = this.transcriptUI.getFullSessionText({
-            model: this.translationMode === 'soniox' ? 'Soniox Cloud API' : 'Local MLX Whisper',
+            model: 'Soniox Cloud API',
             sourceLang: this.sessionSourceLang,
             targetLang: this.sessionTargetLang,
             duration: this._formatDuration(Date.now() - (this.recordingStartTime || Date.now())),
@@ -1536,33 +1221,6 @@ class App {
             }));
         } catch (err) {
             console.error('Failed to save window position:', err);
-        }
-    }
-
-    async _restoreWindowPosition() {
-        try {
-            const saved = localStorage.getItem('window_state');
-            if (!saved) return;
-
-            const state = JSON.parse(saved);
-            const { LogicalPosition, LogicalSize } = window.__TAURI__.window;
-
-            // Validate — don't restore if position seems off-screen
-            if (state.x < -100 || state.y < -100 || state.x > 5000 || state.y > 3000) {
-                console.warn('Saved window position looks off-screen, skipping restore');
-                localStorage.removeItem('window_state');
-                return;
-            }
-
-            if (state.width && state.height && state.width >= 300 && state.height >= 100) {
-                await this.appWindow.setSize(new LogicalSize(state.width, state.height));
-            }
-            if (state.x !== undefined && state.y !== undefined) {
-                await this.appWindow.setPosition(new LogicalPosition(state.x, state.y));
-            }
-        } catch (err) {
-            console.error('Failed to restore window position:', err);
-            localStorage.removeItem('window_state');
         }
     }
 
@@ -1758,78 +1416,6 @@ class App {
         return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
     }
 
-    async _checkForUpdates() {
-        updater.onUpdateFound = (version, notes) => {
-            this._onUpdateAvailable(version, notes);
-        };
-        updater.onError = (err) => {
-            const statusText = document.getElementById('update-status-text');
-            if (statusText) statusText.textContent = `⚠️ Check failed: ${err.message || err}`;
-        };
-        updater.onCheckComplete = (hasUpdate) => {
-            const checkBtn = document.getElementById('btn-check-update');
-            if (checkBtn) checkBtn.classList.remove('spinning');
-            if (!hasUpdate && !this._pendingUpdateVersion) {
-                const statusText = document.getElementById('update-status-text');
-                if (statusText) statusText.textContent = '✅ App is up to date';
-            }
-        };
-        // Delay check slightly so app finishes loading first
-        setTimeout(() => {
-            const statusText = document.getElementById('update-status-text');
-            const checkBtn = document.getElementById('btn-check-update');
-            if (statusText) statusText.textContent = 'Checking for updates...';
-            if (checkBtn) checkBtn.classList.add('spinning');
-            updater.checkForUpdates();
-        }, 3000);
-    }
-
-    _triggerUpdateCheck() {
-        const statusText = document.getElementById('update-status-text');
-        const checkBtn = document.getElementById('btn-check-update');
-        if (statusText) statusText.textContent = 'Checking for updates...';
-        if (checkBtn) checkBtn.classList.add('spinning');
-        updater.checkForUpdates();
-    }
-
-    _onUpdateAvailable(version, notes) {
-        this._pendingUpdateVersion = version;
-
-        // 1. Show badge on settings gear
-        const badge = document.getElementById('settings-badge');
-        if (badge) badge.style.display = '';
-
-        // 2. Update About tab status
-        const statusEl = document.getElementById('update-status');
-        const statusText = document.getElementById('update-status-text');
-        const actions = document.getElementById('update-actions');
-        if (statusEl) statusEl.classList.add('has-update');
-        if (statusText) statusText.textContent = `🆕 Update v${version} available`;
-        if (actions) actions.style.display = '';
-
-        // 3. Show subtle hint on main screen
-        const existing = document.querySelector('.update-hint');
-        if (existing) existing.remove();
-        const hint = document.createElement('div');
-        hint.className = 'update-hint';
-        hint.textContent = `Update v${version} available — go to Settings → About`;
-        hint.addEventListener('click', () => {
-            this._showView('settings');
-            // Switch to About tab
-            document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.settings-tab-content').forEach(t => t.classList.remove('active'));
-            const aboutTab = document.querySelector('[data-tab="tab-about"]');
-            const aboutContent = document.getElementById('tab-about');
-            if (aboutTab) aboutTab.classList.add('active');
-            if (aboutContent) aboutContent.classList.add('active');
-            hint.remove();
-        });
-        document.body.appendChild(hint);
-
-        // Auto-hide hint after 8 seconds
-        setTimeout(() => { if (hint.parentNode) hint.remove(); }, 8000);
-    }
-
     _initAboutTab() {
         // GitHub links
         document.getElementById('link-github')?.addEventListener('click', (e) => {
@@ -1839,60 +1425,6 @@ class App {
         document.getElementById('link-issues')?.addEventListener('click', (e) => {
             e.preventDefault();
             window.__TAURI__?.opener?.openUrl('https://github.com/phuc-nt/my-translator/issues');
-        });
-
-        // Check for Updates button
-        document.getElementById('btn-check-update')?.addEventListener('click', () => {
-            this._triggerUpdateCheck();
-        });
-
-        // Download & Install button
-        document.getElementById('btn-do-update')?.addEventListener('click', async () => {
-            const btnText = document.getElementById('update-btn-text');
-            const btn = document.getElementById('btn-do-update');
-            const progressDiv = document.getElementById('update-progress');
-            const progressFill = document.getElementById('update-progress-fill');
-            const progressPct = document.getElementById('update-progress-pct');
-
-            if (btn) btn.disabled = true;
-            if (btnText) btnText.textContent = 'Downloading...';
-            if (progressDiv) progressDiv.style.display = '';
-
-            try {
-                await updater.downloadAndInstall((downloaded, total) => {
-                    if (total > 0) {
-                        const pct = Math.round((downloaded / total) * 100);
-                        if (progressFill) progressFill.style.width = `${pct}%`;
-                        if (progressPct) progressPct.textContent = `${pct}%`;
-                        if (btnText) btnText.textContent = `Downloading ${pct}%...`;
-                    }
-                });
-                // Install succeeded! Try to restart
-                if (btnText) btnText.textContent = 'Restarting...';
-                try {
-                    const relaunch = window.__TAURI__?.process?.relaunch;
-                    if (relaunch) {
-                        await relaunch();
-                    } else {
-                        const invoke = window.__TAURI__?.core?.invoke;
-                        if (invoke) await invoke('plugin:process|restart');
-                    }
-                } catch (restartErr) {
-                    // Restart failed (e.g. process plugin not available) but update IS installed
-                    console.warn('[Update] Restart failed, update is installed:', restartErr);
-                    if (btnText) btnText.textContent = '✅ Updated! Restart app';
-                    const statusText = document.getElementById('update-status-text');
-                    if (statusText) statusText.textContent = '✅ Update installed — close and reopen the app';
-                    if (btn) btn.disabled = true;
-                }
-            } catch (err) {
-                const errMsg = err?.message || String(err);
-                if (btnText) btnText.textContent = 'Failed — try again';
-                const statusText = document.getElementById('update-status-text');
-                if (statusText) statusText.textContent = `⚠️ Install error: ${errMsg}`;
-                if (btn) btn.disabled = false;
-                console.error('[Update]', err);
-            }
         });
     }
 

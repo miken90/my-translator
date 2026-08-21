@@ -23,7 +23,6 @@
             <path
               d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
-          <span id="settings-badge" class="settings-badge" style="display:none"></span>
         </button>
 
         <div class="status-area" data-tauri-drag-region>
@@ -206,10 +205,8 @@
           <span class="field-label">Engine</span>
           <select id="select-translation-mode">
             <option value="soniox">☁️ Soniox API (Cloud)</option>
-            <option value="local">🖥️ Local MLX (Offline)</option>
           </select>
           <p class="hint" id="hint-mode-soniox">Real-time, 70+ languages, ~$0.12/hr</p>
-          <p class="hint" id="hint-mode-local" style="display:none">Offline, free, ~3-4s delay</p>
         </div>
 
         <div class="settings-section" id="section-api-key">
@@ -636,35 +633,7 @@
             <span class="about-app-name">My Translator</span>
             <span class="about-app-version" id="about-version">v0.5.2</span>
           </div>
-          <p class="hint">Real-time speech translator for macOS & Windows</p>
-        </div>
-
-        <!-- Updater section hidden — portable build, no auto-update -->
-        <div class="settings-section" id="section-update" style="display:none;">
-          <span class="field-label">Updates</span>
-          <div id="update-status" class="update-status">
-            <span id="update-status-text">Click to check for updates</span>
-            <button id="btn-check-update" class="check-update-btn" title="Check now">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="23 4 23 10 17 10"/>
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-              </svg>
-            </button>
-          </div>
-          <div id="update-actions" style="margin-top:8px;display:none;">
-            <button id="btn-do-update" class="primary-btn update-btn">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              <span id="update-btn-text">Download & Install</span>
-            </button>
-          </div>
-          <div id="update-progress" class="update-progress" style="display:none;">
-            <div class="progress-bar"><div id="update-progress-fill" class="progress-fill"></div></div>
-            <span id="update-progress-pct" class="progress-pct">0%</span>
-          </div>
+          <p class="hint">Real-time speech translator for Windows</p>
         </div>
 
         <div class="settings-section">
@@ -743,67 +712,11 @@
     </div>
   </div>
 
-  <!-- ═══════════════════ SETUP MODAL ═══════════════════ -->
-  <div id="setup-modal" class="modal-overlay" style="display:none">
-    <div class="modal-card">
-      <div class="modal-header">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
-          <path d="M12 2L2 7l10 5 10-5-10-5z" />
-          <path d="M2 17l10 5 10-5" />
-          <path d="M2 12l10 5 10-5" />
-        </svg>
-        <h3>Setting up Local Models</h3>
-      </div>
-
-      <div class="modal-body">
-        <p class="modal-desc">Downloading and installing MLX models for offline translation. This is a one-time setup.</p>
-
-        <!-- Progress bar -->
-        <div class="progress-container">
-          <div class="progress-bar">
-            <div id="setup-progress-fill" class="progress-fill"></div>
-          </div>
-          <span id="setup-progress-pct" class="progress-pct">0%</span>
-        </div>
-
-        <!-- Step indicators -->
-        <div class="setup-steps">
-          <div class="setup-step" id="step-check">
-            <span class="step-icon">⏳</span>
-            <span class="step-text">Checking Python</span>
-          </div>
-          <div class="setup-step" id="step-venv">
-            <span class="step-icon">⏳</span>
-            <span class="step-text">Creating environment</span>
-          </div>
-          <div class="setup-step" id="step-packages">
-            <span class="step-icon">⏳</span>
-            <span class="step-text">Installing packages</span>
-          </div>
-          <div class="setup-step" id="step-models">
-            <span class="step-icon">⏳</span>
-            <span class="step-text">Downloading models (~5GB)</span>
-          </div>
-        </div>
-
-        <!-- Current status -->
-        <div class="setup-status">
-          <span id="setup-status-text">Preparing...</span>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button id="btn-cancel-setup" class="secondary-btn">Cancel</button>
-      </div>
-    </div>
-  </div>
-
   <script type="module" src="/js/settings.js"></script>
   <script type="module" src="/js/ui.js"></script>
   <script type="module" src="/js/soniox.js"></script>
   <script type="module" src="/js/elevenlabs-tts.js"></script>
   <script type="module" src="/js/google-tts.js"></script>
-  <script type="module" src="/js/updater.js"></script>
   <script type="module" src="/js/audio-player.js"></script>
   <script type="module" src="/js/app.js"></script>
 </body>
