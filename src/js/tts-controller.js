@@ -33,6 +33,12 @@ export class TTSController {
                 onError(error);
             };
         }
+        // Backpressure: audioPlayer dropped buffers because narration can't
+        // keep up with incoming speech — surface it so it's visible at the
+        // controller level (ready for a future UI treatment).
+        this.audioPlayer.onBackpressure = (droppedCount) => {
+            console.warn(`[TTS] Audio queue overflow — dropped ${droppedCount} buffer(s)`);
+        };
     }
 
     // ─── TTS Control ──────────────────────────────────────
