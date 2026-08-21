@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 /// Translation term: source → target mapping for Soniox
@@ -104,7 +104,7 @@ impl Default for Settings {
 }
 
 /// Get the settings file path
-/// ~/Library/Application Support/com.personal.translator/settings.json
+/// %APPDATA%/com.personal.translator/settings.json
 fn settings_path() -> PathBuf {
     let mut path = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
     path.push("com.personal.translator");
@@ -118,11 +118,38 @@ impl Settings {
         let path = settings_path();
         if path.exists() {
             match fs::read_to_string(&path) {
-                Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
+                Ok(content) => Self::parse_or_backup(&path, &content),
                 Err(_) => Self::default(),
             }
         } else {
             Self::default()
+        }
+    }
+
+    /// Parse settings JSON content. On corrupt content, back up the original
+    /// bytes to `<path>.bak`, log, and fall back to defaults — a corrupt
+    /// settings.json is never silently discarded.
+    fn parse_or_backup(path: &Path, content: &str) -> Self {
+        match serde_json::from_str(content) {
+            Ok(settings) => settings,
+            Err(e) => {
+                eprintln!(
+                    "[Settings] Corrupt settings.json ({}), backing up and using defaults",
+                    e
+                );
+                let backup_path = path.with_extension("json.bak");
+                match fs::write(&backup_path, content) {
+                    Ok(()) => eprintln!(
+                        "[Settings] Backed up corrupt settings.json to {:?}",
+                        backup_path
+                    ),
+                    Err(write_err) => eprintln!(
+                        "[Settings] Failed to write corrupt-settings backup to {:?}: {}",
+                        backup_path, write_err
+                    ),
+                }
+                Self::default()
+            }
         }
     }
 
@@ -186,13 +213,49 @@ mod tests {
 
     #[test]
     fn corrupt_json_falls_back_to_default_settings() {
-        // Mirrors the exact fallback expression used in Settings::load()'s
-        // Ok(content) match arm: serde_json::from_str(&content).unwrap_or_default().
-        // Exercised here directly (not via load()) to avoid touching the real
-        // on-disk settings file during tests.
+        // Characterizes the underlying serde fallback pattern
+        // (serde_json::from_str(...).unwrap_or_default()) that
+        // Settings::parse_or_backup() builds on.
         let corrupt = "{ this is not valid json ";
         let restored: Settings = serde_json::from_str(corrupt).unwrap_or_default();
         assert_eq!(restored, Settings::default());
+    }
+
+    #[test]
+    fn corrupt_settings_are_backed_up_before_falling_back_to_defaults() {
+        // Uses a temp dir (not the real settings_path()) so the test never
+        // touches an actual user's settings.json.
+        let dir = std::env::temp_dir().join("my-translator-test-corrupt-settings-backup");
+        let _ = fs::create_dir_all(&dir);
+        let settings_path = dir.join("settings.json");
+        let backup_path = dir.join("settings.json.bak");
+        let _ = fs::remove_file(&backup_path); // clean slate from any previous run
+
+        let corrupt = "{ not valid json ";
+        let restored = Settings::parse_or_backup(&settings_path, corrupt);
+
+        assert_eq!(restored, Settings::default());
+        let backup_content = fs::read_to_string(&backup_path).expect("backup file should exist");
+        assert_eq!(backup_content, corrupt);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn valid_settings_json_does_not_create_a_backup_file() {
+        let dir = std::env::temp_dir().join("my-translator-test-valid-settings-no-backup");
+        let _ = fs::create_dir_all(&dir);
+        let settings_path = dir.join("settings.json");
+        let backup_path = dir.join("settings.json.bak");
+        let _ = fs::remove_file(&backup_path);
+
+        let valid = serde_json::to_string(&Settings::default()).expect("serialize");
+        let restored = Settings::parse_or_backup(&settings_path, &valid);
+
+        assert_eq!(restored, Settings::default());
+        assert!(!backup_path.exists());
+
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -204,8 +267,10 @@ mod tests {
                 target: "tội".to_string(),
             }],
         };
-        let mut settings = Settings::default();
-        settings.custom_context = Some(ctx.clone());
+        let settings = Settings {
+            custom_context: Some(ctx.clone()),
+            ..Settings::default()
+        };
 
         let json = serde_json::to_string(&settings).expect("serialize");
         let restored: Settings = serde_json::from_str(&json).expect("deserialize");
