@@ -1,6 +1,45 @@
-# Unreleased — Meeting Features (Phase 6)
+# v0.6.0 — Windows-Only, Meeting Features & Stability
 
-> Version number TBD — part of the single final release planned after the meeting-focus-optimize-refactor (Phases 1-6).
+My Translator is now **Windows-only**, repositioned as a focused real-time
+translation tool for meetings and video watching. This release also ships
+crash recovery, transcript export, a persisted/regenerable AI summary,
+transcript Q&A, and a round of Rust/frontend stability and performance work.
+
+> **macOS users**: macOS support has been removed as of this version. Please
+> stay on **v0.5.4** — the last release with macOS support (available in
+> GitHub Releases history / git tags).
+
+## 🪟 Windows-Only
+
+- Removed all macOS code: ScreenCaptureKit system audio, code-signing/
+  notarization config, macOS install guides (archived, not deleted)
+- Removed the experimental Local Mode (MLX + Whisper, Apple-Silicon-only
+  offline STT) entirely, including its Python sidecar scripts
+- Removed the dead auto-updater plugin stack (declared but never actually
+  wired into the Tauri builder — inert code, not a functional regression)
+
+## 🛡️ Stability
+
+- **Edge TTS no longer hangs**: replaced 7 `.unwrap()` header-parse calls
+  with proper error handling; the WebSocket read loop now times out after
+  15s instead of waiting forever for a response missing `turn.end`
+- **Corrupt settings.json is recoverable**: a corrupt settings file is now
+  backed up to `settings.json.bak` (with a log line) before falling back
+  to defaults, instead of being silently discarded
+- **No more orphaned audio threads**: capture forwarder threads are now
+  tracked and joined with a bounded (~2s) timeout on stop, so repeated
+  start/stop cycles can't accumulate zombie threads
+
+## ⚡ Performance
+
+- **Incremental transcript rendering**: replaced the full `innerHTML`
+  rebuild on every ~100ms update with a keyed card renderer — only cards
+  whose content actually changed get repainted, keeping long (multi-hour)
+  sessions smooth
+- Provisional (in-progress) text updates are coalesced via
+  `requestAnimationFrame` instead of rendering on every single update
+- Bounded internal buffers (Soniox context-carryover history, transcript
+  trim) so memory stays flat over very long sessions
 
 ## ✨ New Features
 
@@ -23,14 +62,21 @@
 - Graceful, disabled state with a hint when no AI endpoint is configured
 - No question/answer history persists beyond the current sessions-view visit
 
-## 📁 Files Changed
+## 🔧 Internal
+
+- Frontend `app.js` (was 1927 LOC) split into focused modules (session-manager, tts-controller, window-manager, settings-form-controller, session-state, etc.); 4 duplicated TTS providers unified onto one `BaseTTSProvider`
+- New test suite from scratch: **91 JS tests** (Vitest) + **16 Rust tests** (`cargo test`), covering session pairing/trim invariants, context carryover, settings, chunking, export formatting, and crash-recovery decision logic
+
+## 📁 Files Changed (selected)
 - `src/js/session-manager.js` — crash recovery, export, summary persistence/regenerate, Q&A wiring
-- `src/js/ui.js` — segment-count flush hook, `getExportText()`
-- `src/js/ai-summary.js` — map-reduce chunking, `## AI Summary` section formatting/upsert
-- `src/js/ai-client.js` — new shared OpenAI-compatible chat client (extracted, no behavior change)
-- `src/js/session-qa.js` — new transcript Q&A module
+- `src/js/ui.js`, `src/js/transcript-card-renderer.js` — keyed incremental renderer, segment-count flush hook, `getExportText()`
+- `src/js/ai-summary.js`, `src/js/ai-client.js` (new) — map-reduce chunking, `## AI Summary` section formatting/upsert
+- `src/js/session-qa.js` (new) — transcript Q&A module
+- `src/js/tts/base-tts-provider.js` (new) — shared TTS provider base class
 - `src-tauri/src/commands/transcript.rs` — `update_transcript` (atomic temp+rename write-back), `export_transcript`
-- `src/index.html`, `src/styles/main.css` — export controls, recovery dialog, Q&A panel
+- `src-tauri/src/commands/edge_tts.rs`, `src-tauri/src/settings.rs`, `src-tauri/src/commands/audio.rs` — stability fixes above
+- `src-tauri/src/audio/wasapi/` — split into `mod.rs`/`com_setup.rs`/`capture_loop.rs` (behavior-preserving)
+- Deleted: `src-tauri/src/audio/system_audio.rs`, `src-tauri/src/commands/local_pipeline.rs`, `scripts/setup_mlx.py`, `scripts/local_pipeline.py`, `src/js/updater.js`, `src-tauri/Entitlements.plist`
 
 ---
 
