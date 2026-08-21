@@ -258,9 +258,11 @@ export class App {
     // ─── Apply Settings ────────────────────────────────────
 
     _applySettings(settings) {
-        // Update overlay opacity
+        // Update overlay opacity. This drives `#overlay-view::after` (the background
+        // layer) via a custom property, NOT element opacity — element opacity is a
+        // group operation that fades the transcript and controls along with the panel.
         const overlayView = document.getElementById('overlay-view');
-        overlayView.style.opacity = settings.overlay_opacity || 0.85;
+        overlayView.style.setProperty('--overlay-opacity', settings.overlay_opacity || 0.85);
 
         // Update transcript UI
         if (this.transcriptUI) {

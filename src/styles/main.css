@@ -28,7 +28,6 @@
   --text-primary: rgba(255, 255, 255, 0.92);
   --text-secondary: rgba(255, 255, 255, 0.55);
   --text-muted: rgba(255, 255, 255, 0.5);
-  --text-provisional: rgba(255, 255, 255, 0.4);
 
   --accent: #638cff;
   --accent-hover: #7ea0ff;
@@ -79,13 +78,16 @@ body {
    OVERLAY VIEW
    ═══════════════════════════════════════════════════════════ */
 
+/* The panel's glass (background + blur) lives on ::after, not here, so the user's
+   opacity setting can fade the backdrop without fading text and controls with it.
+   Border and box-shadow deliberately stay on the host: moving the border would
+   change the content box by 2px (the toolbar's minimum width depends on it), and
+   an outer shadow drawn by a child would be clipped by `overflow: hidden`. They
+   therefore keep marking the window edge at low opacity, which is intended. */
 #overlay-view {
   position: relative;
-  background: var(--bg-primary);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-subtle);
-  backdrop-filter: blur(30px) saturate(150%);
-  -webkit-backdrop-filter: blur(30px) saturate(150%);
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.5),
     0 2px 8px rgba(0, 0, 0, 0.3),
@@ -93,8 +95,30 @@ body {
   overflow: hidden;
 }
 
+/* Background layer. `--overlay-opacity` is set on #overlay-view by app.js from the
+   user's setting and inherits down to here. ::before is unavailable — it is the
+   compact-mode hover strip. */
+#overlay-view::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: var(--bg-primary);
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  opacity: var(--overlay-opacity, 0.85);
+  pointer-events: none;
+}
+
 /* ─── Drag Region / Control Bar ────────────────────────── */
+/* position/z-index lift this above #overlay-view::after (the background layer).
+   Done per-child rather than by giving the host a stacking context: a stacking
+   context on #overlay-view risks making it a backdrop root, which would leave
+   ::after's backdrop-filter with nothing behind it to sample. */
 #drag-region {
+  position: relative;
+  z-index: 1;
   flex-shrink: 0;
   height: var(--control-bar-height);
   border-bottom: 1px solid var(--border-subtle);
@@ -453,6 +477,8 @@ body {
 
 /* ─── Transcript Container ─────────────────────────────── */
 #transcript-container {
+  position: relative; /* above #overlay-view::after */
+  z-index: 1;
   flex: 1;
   min-height: 0; /* Required for flex child to overflow-scroll properly */
   overflow-y: auto;
@@ -812,6 +838,8 @@ body {
 
 /* ─── Resize Handle ────────────────────────────────────── */
 #resize-handle {
+  position: relative; /* above #overlay-view::after */
+  z-index: 1;
   height: 6px;
   cursor: ns-resize;
   background: transparent;
@@ -1784,7 +1812,9 @@ input[type="range"]::-webkit-slider-thumb:hover {
   display: block;
   margin-bottom: 4px;
   font-size: 10px;
-  color: var(--text-dim, rgba(255, 255, 255, 0.4));
+  /* Was a 0.4 white (3.55:1 — below AA even at full opacity). Raised to the muted
+     tier, which is the same 0.5 white the sibling labels already use. */
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
