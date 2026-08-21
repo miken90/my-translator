@@ -126,6 +126,42 @@ body {
   animation: viewFadeIn 0.2s ease;
 }
 
+/* ─── Focus ────────────────────────────────────────────── */
+/* :where() keeps this at specificity (0,1,0) deliberately, so a later,
+   deliberate per-component focus treatment can still override it. That is
+   a liability against any pre-existing rule that suppresses the default
+   outline at equal or higher specificity — which is why every such rule
+   in this file has that suppression removed rather than left to lose the
+   cascade against this one. */
+:where(button, input, select, textarea, [role="radio"], a[href]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Controls flush against an `overflow: hidden`/`auto` ancestor edge (or in a
+   row too tight for the +2px offset) draw the ring inside their own box
+   instead, so an ancestor's clip box does not cut it off. */
+#btn-close:focus-visible,
+#btn-settings:focus-visible,
+.session-copy-btn:focus-visible,
+.qa-input-row input:focus-visible,
+.float-btn:focus-visible,
+.color-dot:focus-visible {
+  outline-offset: -2px;
+}
+
+/* ─── Disabled state ───────────────────────────────────── */
+/* Standardized on the `disabled` property (not `pointer-events: none` or a
+   toggled class): it also removes the control from the tab order, which
+   matters now that focus is visible. */
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* ═══════════════════════════════════════════════════════════
    OVERLAY VIEW
    ═══════════════════════════════════════════════════════════ */
@@ -302,10 +338,10 @@ body {
   background: rgba(99, 140, 255, 0.25);
 }
 
-.tts-action-btn.disabled {
+/* Byte-exact override: the shared button:disabled rule below uses 0.4;
+   this control shipped at 0.35 and that value is kept rather than nudged. */
+.tts-action-btn:disabled {
   opacity: 0.35;
-  pointer-events: none;
-  cursor: not-allowed;
 }
 
 .tts-label {
@@ -313,12 +349,14 @@ body {
   letter-spacing: 0.5px;
 }
 
-/* Pin Button Active State */
-#btn-pin.active {
+/* Pin / Compact Button Active State */
+#btn-pin.active,
+#btn-compact.active {
   color: var(--accent);
 }
 
-#btn-pin.active:hover {
+#btn-pin.active:hover,
+#btn-compact.active:hover {
   background: var(--accent-glow);
 }
 
@@ -538,21 +576,21 @@ body {
   padding: var(--space-lg) var(--space-xl);
 }
 
-/* Custom scrollbar */
-#transcript-container::-webkit-scrollbar {
+/* Custom scrollbar — shared by every scrolling region in the app */
+#transcript-container::-webkit-scrollbar, .settings-body::-webkit-scrollbar, .sessions-body::-webkit-scrollbar, .session-scroll-region::-webkit-scrollbar, .qa-messages::-webkit-scrollbar {
   width: 4px;
 }
 
-#transcript-container::-webkit-scrollbar-track {
+#transcript-container::-webkit-scrollbar-track, .settings-body::-webkit-scrollbar-track, .sessions-body::-webkit-scrollbar-track, .session-scroll-region::-webkit-scrollbar-track, .qa-messages::-webkit-scrollbar-track {
   background: transparent;
 }
 
-#transcript-container::-webkit-scrollbar-thumb {
+#transcript-container::-webkit-scrollbar-thumb, .settings-body::-webkit-scrollbar-thumb, .sessions-body::-webkit-scrollbar-thumb, .session-scroll-region::-webkit-scrollbar-thumb, .qa-messages::-webkit-scrollbar-thumb {
   background: var(--surface-3);
   border-radius: var(--radius-2xs);
 }
 
-#transcript-container::-webkit-scrollbar-thumb:hover {
+#transcript-container::-webkit-scrollbar-thumb:hover, .settings-body::-webkit-scrollbar-thumb:hover, .sessions-body::-webkit-scrollbar-thumb:hover, .session-scroll-region::-webkit-scrollbar-thumb:hover, .qa-messages::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
 
@@ -796,7 +834,6 @@ body {
   cursor: pointer;
   transition: all 0.15s;
   padding: 0;
-  outline: none;
 }
 
 .color-dot:hover {
@@ -954,19 +991,6 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: var(--space-xl);
-}
-
-.settings-body::-webkit-scrollbar {
-  width: 4px;
-}
-
-.settings-body::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.settings-body::-webkit-scrollbar-thumb {
-  background: var(--surface-3);
-  border-radius: var(--radius-2xs);
 }
 
 /* ─── Settings Tabs ───────────────────────────────────── */
@@ -1191,7 +1215,6 @@ input[type="password"] {
   color: var(--text-primary);
   font-family: inherit;
   font-size: var(--font-size-md);
-  outline: none;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
@@ -1214,7 +1237,6 @@ select {
   color: var(--text-primary);
   font-family: inherit;
   font-size: var(--font-size-md);
-  outline: none;
   cursor: pointer;
   -webkit-appearance: none;
   appearance: none;
@@ -1326,7 +1348,6 @@ input[type="range"] {
   appearance: none;
   background: var(--surface-3);
   border-radius: var(--radius-2xs);
-  outline: none;
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -1651,19 +1672,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
   gap: 0;
 }
 
-.sessions-body::-webkit-scrollbar {
-  width: 4px;
-}
-
-.sessions-body::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.sessions-body::-webkit-scrollbar-thumb {
-  background: var(--surface-3);
-  border-radius: var(--radius-2xs);
-}
-
 /* ─── Session List ─────────────────────────────────────── */
 
 .sessions-loading,
@@ -1803,19 +1811,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
   overflow-y: auto;
 }
 
-.session-scroll-region::-webkit-scrollbar {
-  width: 4px;
-}
-
-.session-scroll-region::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.session-scroll-region::-webkit-scrollbar-thumb {
-  background: var(--surface-3);
-  border-radius: var(--radius-2xs);
-}
-
 .session-content-scroll {
   padding: var(--space-lg);
   font-size: var(--font-size-base);
@@ -1876,11 +1871,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
   white-space: pre-wrap;
 }
 
-.session-copy-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
+/* opacity/cursor come from the shared button:disabled rule. This rule stays:
+   the shared rule alone does not stop the :hover background/color change
+   below, which would make a disabled Copy/Export/Summary button light up
+   under the cursor. */
 .session-copy-btn:disabled:hover {
   background: var(--surface-2);
   color: var(--text-secondary);
@@ -1930,19 +1924,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
   gap: var(--space-xs);
 }
 
-.qa-messages::-webkit-scrollbar {
-  width: 4px;
-}
-
-.qa-messages::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.qa-messages::-webkit-scrollbar-thumb {
-  background: var(--surface-3);
-  border-radius: var(--radius-2xs);
-}
-
 .qa-message {
   font-size: var(--font-size-base);
   line-height: 1.5;
@@ -1984,9 +1965,4 @@ input[type="range"]::-webkit-slider-thumb:hover {
   color: var(--text-primary);
   font-size: var(--font-size-base);
   padding: var(--space-xs) var(--space-md);
-}
-
-.qa-input-row input:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }

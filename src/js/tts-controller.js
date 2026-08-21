@@ -143,7 +143,8 @@ export class TTSController {
 
         if (btn) {
             btn.classList.toggle('active', this.ttsEnabled);
-            btn.classList.toggle('disabled', isTwoWay);
+            btn.setAttribute('aria-pressed', String(this.ttsEnabled));
+            btn.disabled = isTwoWay;
             btn.title = isTwoWay ? 'TTS disabled in two-way mode' : 'Toggle TTS (Ctrl+T)';
         }
         if (iconOff) iconOff.style.display = this.ttsEnabled ? 'none' : 'block';

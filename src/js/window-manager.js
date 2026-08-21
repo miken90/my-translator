@@ -39,7 +39,10 @@ export class WindowManager {
         this.isPinned = !this.isPinned;
         await this.appWindow.setAlwaysOnTop(this.isPinned);
         const btn = document.getElementById('btn-pin');
-        if (btn) btn.classList.toggle('active', this.isPinned);
+        if (btn) {
+            btn.classList.toggle('active', this.isPinned);
+            btn.setAttribute('aria-pressed', String(this.isPinned));
+        }
         this._showToast(this.isPinned ? 'Pinned on top' : 'Unpinned — window can go behind other apps', 'success');
     }
 
@@ -49,6 +52,7 @@ export class WindowManager {
         this.isCompact = !this.isCompact;
         const dragRegion = document.getElementById('drag-region');
         const overlay = document.getElementById('overlay-view');
+        const btn = document.getElementById('btn-compact');
 
         if (this.isCompact) {
             dragRegion.classList.add('compact-hidden');
@@ -56,6 +60,10 @@ export class WindowManager {
         } else {
             dragRegion.classList.remove('compact-hidden');
             overlay.classList.remove('compact-mode');
+        }
+        if (btn) {
+            btn.classList.toggle('active', this.isCompact);
+            btn.setAttribute('aria-pressed', String(this.isCompact));
         }
     }
 }

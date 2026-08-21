@@ -304,7 +304,10 @@ export class App {
 
     _updateSourceButtons() {
         SOURCE_BUTTONS.forEach(([id, source]) => {
-            document.getElementById(id).classList.toggle('active', this.currentSource === source);
+            const isSelected = this.currentSource === source;
+            const btn = document.getElementById(id);
+            btn.classList.toggle('active', isSelected);
+            btn.setAttribute('aria-checked', String(isSelected));
         });
     }
 
