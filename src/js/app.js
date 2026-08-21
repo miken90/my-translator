@@ -18,7 +18,7 @@ import { SessionManager } from './session-manager.js';
 import { TTSController } from './tts-controller.js';
 import { SessionState, isToggleBlocked } from './session-state.js';
 import { showToast } from './toast.js';
-import { updateStatusIndicator } from './status-indicator.js';
+import { updateStatusIndicator, startElapsedTimer, stopElapsedTimer } from './status-indicator.js';
 
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWindow } = window.__TAURI__.window;
@@ -355,6 +355,7 @@ export class App {
         this.sessionState = SessionState.LISTENING;
         this._updateStartButton();
         if (!this.recordingStartTime) this.recordingStartTime = Date.now();
+        startElapsedTimer(this.recordingStartTime);
 
         // Record session metadata for auto-save
         if (!this.sessionStartTime) {
@@ -433,6 +434,7 @@ export class App {
     async stop() {
         this.sessionState = SessionState.STOPPING;
         this._updateStartButton();
+        stopElapsedTimer();
 
         // Stop audio capture
         try {

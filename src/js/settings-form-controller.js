@@ -212,6 +212,9 @@ export class SettingsFormController {
         document.getElementById('range-max-lines').value = s.max_lines || 5;
         document.getElementById('max-lines-value').textContent = s.max_lines || 5;
 
+        const exportFormatSelect = document.getElementById('select-export-format');
+        if (exportFormatSelect) exportFormatSelect.value = s.export_format || 'md';
+
         // Custom context (rich format)
         const ctx = s.custom_context;
         // General context rows
@@ -293,6 +296,7 @@ export class SettingsFormController {
             overlay_opacity: parseInt(document.getElementById('range-opacity').value) / 100,
             font_size: parseInt(document.getElementById('range-font-size').value),
             max_lines: parseInt(document.getElementById('range-max-lines').value),
+            export_format: document.getElementById('select-export-format')?.value || 'md',
             custom_context: null,
         };
 

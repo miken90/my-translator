@@ -27,7 +27,7 @@
 
   --text-primary: rgba(255, 255, 255, 0.92);
   --text-secondary: rgba(255, 255, 255, 0.55);
-  --text-muted: rgba(255, 255, 255, 0.35);
+  --text-muted: rgba(255, 255, 255, 0.5);
   --text-provisional: rgba(255, 255, 255, 0.4);
 
   --accent: #638cff;
@@ -165,6 +165,31 @@ body {
   gap: 2px;
 }
 
+/* Toolbar zones — group related controls, never shrink (status area absorbs
+   width changes so window controls stay reachable at narrow widths) */
+.toolbar-zone {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.toolbar-zone-transcript {
+  gap: 8px;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border-light);
+  flex-shrink: 0;
+}
+
+.btn-clear-danger:hover {
+  background: rgba(248, 113, 113, 0.2);
+  color: var(--error);
+}
+
 /* TTS Action Button — prominent, next to Start */
 .tts-action-btn {
   display: flex;
@@ -269,6 +294,7 @@ body {
   gap: 6px;
   margin-left: 4px;
   flex: 1;
+  min-width: 0;
   pointer-events: none;
 }
 
@@ -316,6 +342,30 @@ body {
   font-weight: 500;
   color: var(--text-muted);
   letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-text.connecting {
+  color: var(--warning);
+}
+
+.status-text.connected {
+  color: var(--success);
+}
+
+.status-text.error {
+  color: var(--error);
+}
+
+.status-elapsed {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
 }
 
 /* Source Controls */
@@ -1487,6 +1537,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 .sessions-title {
+  flex: 1;
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
@@ -1648,9 +1699,29 @@ input[type="range"]::-webkit-slider-thumb:hover {
   color: var(--text-primary);
 }
 
-.session-content-scroll {
+/* Single scroll region for the viewer: summary (top) + transcript (below).
+   Header and QA section stay pinned outside this container. No
+   position:sticky — backdrop-filter ancestors glitch it in WebView2. */
+.session-scroll-region {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+}
+
+.session-scroll-region::-webkit-scrollbar {
+  width: 4px;
+}
+
+.session-scroll-region::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.session-scroll-region::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.session-content-scroll {
   padding: 12px;
   font-size: 12px;
   line-height: 1.7;
@@ -1662,20 +1733,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
   -webkit-user-select: text;
 }
 
-.session-content-scroll::-webkit-scrollbar {
-  width: 4px;
-}
-
-.session-content-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
-}
-
-/* AI Summary section in session viewer */
+/* AI Summary section in session viewer — precedes the transcript */
 .session-summary-section {
-  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
   padding: 12px;
-  flex-shrink: 0;
 }
 
 .session-summary-header {
@@ -1768,6 +1829,19 @@ input[type="range"]::-webkit-slider-thumb:hover {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.qa-messages::-webkit-scrollbar {
+  width: 4px;
+}
+
+.qa-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.qa-messages::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
 }
 
 .qa-message {
