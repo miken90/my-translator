@@ -52,6 +52,14 @@ completes the first pass.
 - [ ] While actively streaming new segments, scroll up to read older content — new segments must NOT yank the view back to the bottom
 - [ ] Scroll back down near the bottom — auto-scroll resumes on the next new segment
 
+## Rendering performance (Phase 5 — keyed card renderer)
+
+- [ ] Change font size mid-stream (while segments are actively arriving) — no visual glitch, no dropped/duplicated cards
+- [ ] Clear session mid-stream (Clear button while actively streaming) — display clears immediately, next segment renders a fresh card, no leftover stale card
+- [ ] DevTools "Paint flashing" enabled: only the card(s) that actually changed repaint per update — the rest of the transcript region does not flash
+- [ ] DevTools Performance recording during rapid provisional updates (fast speech): no main-thread long tasks ≥50ms attributable to rendering
+- [ ] Real ~30 minute run: heap size (DevTools Memory/Performance) stays roughly flat, not climbing unbounded
+
 ---
 
 ## Run Log
