@@ -1,25 +1,34 @@
 /**
  * SessionManager — transcript persistence, periodic auto-save/temp-flush,
- * and the saved-sessions browser (list/open/copy/AI-summarize).
+ * crash recovery, copy/export, AI summary persistence, and the saved-
+ * sessions browser (list/open/copy/export/summarize/Q&A).
  *
  * CLAUDE.md invariant: sessionLog (owned by TranscriptUI) is never trimmed;
  * clearSession() is only called here after a successful final save.
  */
 
+const SUMMARIZE_BTN_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+
 export class SessionManager {
-    constructor({ transcriptUI, invoke, settingsManager, aiSummary, showToast, showView, getSessionMeta }) {
+    constructor({ transcriptUI, invoke, settingsManager, aiSummary, sessionQA, showToast, showView, getSessionMeta }) {
         this.transcriptUI = transcriptUI;
         this.invoke = invoke;
         this.settingsManager = settingsManager;
         this.aiSummary = aiSummary;
+        this.sessionQA = sessionQA;
         this._showToast = showToast || (() => {});
         this._showView = showView || (() => {});
         this._getSessionMeta = getSessionMeta || (() => ({}));
 
         this._autoSaveTimer = null;
         this._currentSessionText = null;
+        this._currentSessionFilename = null;
+        this._currentSessionHasSummary = false;
         this._isSummarizing = false;
         this._summarizeController = null;
+        this._isAsking = false;
+        this._qaController = null;
+        this._pendingRecoveryContent = null;
     }
 
     // ─── Event Binding ──────────────────────────────────────
@@ -32,8 +41,8 @@ export class SessionManager {
 
         // Back from sessions
         document.getElementById('btn-sessions-back').addEventListener('click', () => {
-            // Cancel any in-flight summary request when leaving sessions view
             this._cancelSummarize();
+            this._resetQA();
             this._showView('overlay');
         });
 
@@ -44,17 +53,30 @@ export class SessionManager {
             const summarySection = document.getElementById('session-summary-section');
             if (summarySection) summarySection.style.display = 'none';
             this._currentSessionText = null;
-            // Cancel any in-flight summary request
+            this._currentSessionFilename = null;
             this._cancelSummarize();
+            this._resetQA();
         });
 
-        // Copy session content
+        // Copy session content (loaded past session)
         document.getElementById('btn-session-copy').addEventListener('click', async () => {
             const content = document.getElementById('session-viewer-content')?.textContent || '';
             if (content) {
                 await navigator.clipboard.writeText(content);
                 this._showToast('Copied to clipboard', 'success');
             }
+        });
+
+        // Export loaded past session
+        document.getElementById('btn-session-export')?.addEventListener('click', () => {
+            const format = document.getElementById('select-session-export-format')?.value || 'md';
+            this.exportViewedSession(format);
+        });
+
+        // Export live/overlay session
+        document.getElementById('btn-export')?.addEventListener('click', () => {
+            const format = document.getElementById('select-export-format')?.value || 'md';
+            this.exportSession(format);
         });
 
         // Open saved transcripts folder (kept for Finder access)
@@ -66,9 +88,26 @@ export class SessionManager {
             }
         });
 
-        // Summarize session with AI
+        // Summarize/regenerate session with AI
         document.getElementById('btn-session-summarize')?.addEventListener('click', () => {
             this.summarizeSession();
+        });
+
+        // Crash recovery dialog
+        document.getElementById('btn-recovery-recover')?.addEventListener('click', () => {
+            this.recoverPendingTranscript();
+        });
+        document.getElementById('btn-recovery-discard')?.addEventListener('click', () => {
+            this.discardPendingTranscript();
+        });
+
+        // Q&A
+        document.getElementById('btn-qa-ask')?.addEventListener('click', () => this._askQuestion());
+        document.getElementById('input-qa-question')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this._askQuestion();
+            }
         });
     }
 
@@ -173,6 +212,104 @@ export class SessionManager {
         }
     }
 
+    // ─── Crash Recovery ───────────────────────────────────────
+
+    // Call once at app startup. A leftover _recording.md means a previous
+    // session ended without a graceful stop() (crash/kill) — offer to
+    // recover it into a proper saved session, or discard it.
+    async checkForOrphanTempTranscript() {
+        let content;
+        try {
+            content = await this.invoke('read_transcript', { filename: '_recording.md' });
+        } catch {
+            return; // no orphan temp file — normal startup
+        }
+        if (!content || !content.trim()) {
+            await this.cleanupTempTranscript();
+            return;
+        }
+        this._pendingRecoveryContent = content;
+        const dialog = document.getElementById('recovery-dialog');
+        if (dialog) dialog.style.display = 'flex';
+    }
+
+    async recoverPendingTranscript() {
+        if (!this._pendingRecoveryContent) return;
+        try {
+            const path = await this.invoke('save_transcript', { content: this._pendingRecoveryContent });
+            const filename = path.split(/[\\/]/).pop();
+            this._showToast(`Recovered: ${filename}`, 'success');
+        } catch (err) {
+            this._showToast('Failed to recover transcript: ' + err, 'error');
+        } finally {
+            await this.cleanupTempTranscript();
+            this._pendingRecoveryContent = null;
+            this._hideRecoveryDialog();
+        }
+    }
+
+    async discardPendingTranscript() {
+        await this.cleanupTempTranscript();
+        this._pendingRecoveryContent = null;
+        this._hideRecoveryDialog();
+    }
+
+    _hideRecoveryDialog() {
+        const dialog = document.getElementById('recovery-dialog');
+        if (dialog) dialog.style.display = 'none';
+    }
+
+    // ─── Copy / Export ─────────────────────────────────────────
+
+    // Export the live/active session — always from sessionLog, never the
+    // trimmed display buffer (existing invariant).
+    async exportSession(format) {
+        const meta = this._getSessionMeta();
+        const content = this.transcriptUI.getExportText(format, {
+            duration: this.formatDuration(Date.now() - (meta.recordingStartTime || Date.now())),
+            sourceLang: meta.sessionSourceLang,
+            targetLang: meta.sessionTargetLang,
+        });
+        if (!content) {
+            this._showToast('Nothing to export yet', 'info');
+            return;
+        }
+        await this._exportContent(content, format);
+    }
+
+    // Export a previously-saved session loaded in the sessions view. Reuses
+    // the already-saved content (which itself was originally serialized
+    // from sessionLog at save time); per-entry timestamps aren't available
+    // post-hoc for old sessions (only session-level date/time/duration).
+    async exportViewedSession(format) {
+        if (!this._currentSessionText) {
+            this._showToast('Nothing to export yet', 'info');
+            return;
+        }
+        const content = format === 'txt' ? this._toPlainText(this._currentSessionText) : this._currentSessionText;
+        await this._exportContent(content, format);
+    }
+
+    async _exportContent(content, format) {
+        try {
+            const path = await this.invoke('export_transcript', { content, extension: format });
+            const filename = path.split(/[\\/]/).pop();
+            this._showToast(`Exported: ${filename}`, 'success');
+        } catch (err) {
+            this._showToast('Failed to export: ' + err, 'error');
+        }
+    }
+
+    // The saved session format's only markdown syntax is "**...**" bold
+    // headers and "> " blockquote prefixes (see TranscriptUI methods) —
+    // strip exactly those, nothing more.
+    _toPlainText(mdContent) {
+        return mdContent
+            .split('\n')
+            .map(line => line.replace(/^>\s?/, '').replace(/\*\*(.+?)\*\*/g, '$1'))
+            .join('\n');
+    }
+
     // ─── Session History ───────────────────────────────────
 
     async showSessions() {
@@ -222,6 +359,8 @@ export class SessionManager {
         const title = document.getElementById('session-viewer-title');
         const content = document.getElementById('session-viewer-content');
         const summarySection = document.getElementById('session-summary-section');
+        const originalEl = document.getElementById('session-summary-original');
+        const translatedEl = document.getElementById('session-summary-translated');
 
         if (listPanel) listPanel.style.display = 'none';
         if (viewer) viewer.style.display = '';
@@ -229,23 +368,40 @@ export class SessionManager {
         if (content) content.textContent = 'Loading...';
         if (summarySection) summarySection.style.display = 'none';
         this._currentSessionText = null;
+        this._currentSessionFilename = filename;
+        this._resetQA();
 
         try {
             const text = await this.invoke('read_transcript', { filename });
             if (content) content.textContent = text;
             this._currentSessionText = text;
+
+            const existingSummary = this._parseExistingSummary(text);
+            this._currentSessionHasSummary = !!existingSummary;
+            if (existingSummary) {
+                if (summarySection) summarySection.style.display = '';
+                this._renderSummaryResult(originalEl, translatedEl, existingSummary);
+            }
         } catch (err) {
             if (content) content.textContent = `Error loading session: ${err}`;
         }
 
-        // Enable/disable summary button based on AI config
+        this._updateSummarizeButtonLabel();
+
+        // Enable/disable AI-dependent controls (summarize + Q&A) based on config
         const s = this.settingsManager.get();
+        const configured = !!(s.ai_endpoint && s.ai_api_key && s.ai_model);
         const summarizeBtn = document.getElementById('btn-session-summarize');
         if (summarizeBtn) {
-            const configured = !!(s.ai_endpoint && s.ai_api_key && s.ai_model);
             summarizeBtn.disabled = !configured;
             summarizeBtn.title = configured ? 'Summarize with AI' : 'Configure AI in Settings first';
         }
+        const qaAskBtn = document.getElementById('btn-qa-ask');
+        const qaInput = document.getElementById('input-qa-question');
+        const qaHint = document.getElementById('qa-hint');
+        if (qaAskBtn) qaAskBtn.disabled = !configured;
+        if (qaInput) qaInput.disabled = !configured;
+        if (qaHint) qaHint.style.display = configured ? 'none' : '';
     }
 
     async summarizeSession() {
@@ -255,14 +411,13 @@ export class SessionManager {
             this._showToast('Configure AI settings first (Settings → AI tab)', 'error');
             return;
         }
-        if (!this._currentSessionText) return;
+        if (!this._currentSessionText || !this._currentSessionFilename) return;
 
         const btn = document.getElementById('btn-session-summarize');
         const section = document.getElementById('session-summary-section');
         const originalEl = document.getElementById('session-summary-original');
         const translatedEl = document.getElementById('session-summary-translated');
 
-        // Loading state
         this._isSummarizing = true;
         this._summarizeController = new AbortController();
         if (btn) { btn.disabled = true; btn.textContent = 'Summarizing...'; }
@@ -278,21 +433,22 @@ export class SessionManager {
                 signal: this._summarizeController.signal,
             });
 
-            if (originalEl) {
-                originalEl.innerHTML = '';
-                const origLabel = document.createElement('strong');
-                origLabel.textContent = 'Original';
-                const origText = document.createElement('p');
-                origText.textContent = result.original;
-                originalEl.append(origLabel, origText);
-            }
-            if (translatedEl) {
-                translatedEl.innerHTML = '';
-                const transLabel = document.createElement('strong');
-                transLabel.textContent = 'Translated';
-                const transText = document.createElement('p');
-                transText.textContent = result.translated;
-                translatedEl.append(transLabel, transText);
+            this._renderSummaryResult(originalEl, translatedEl, result);
+
+            // Persist: never let a save failure corrupt the transcript —
+            // update_transcript writes temp + atomic rename. A failure here
+            // leaves the on-disk file untouched; the user still sees the
+            // freshly generated summary and can retry.
+            try {
+                const summarySection = this.aiSummary.formatSummarySection({ ...result, model: s.ai_model });
+                const updatedContent = this.aiSummary.upsertSummarySection(this._currentSessionText, summarySection);
+                await this.invoke('update_transcript', { filename: this._currentSessionFilename, content: updatedContent });
+                this._currentSessionText = updatedContent;
+                this._currentSessionHasSummary = true;
+                this._showToast('Summary saved to session', 'success');
+            } catch (persistErr) {
+                console.error('Failed to persist summary:', persistErr);
+                this._showToast('Summary generated but failed to save to session file', 'error');
             }
         } catch (err) {
             if (originalEl) originalEl.textContent = `Error: ${err.message}`;
@@ -300,11 +456,49 @@ export class SessionManager {
             this._showToast(`Summary failed: ${err.message}`, 'error');
         } finally {
             this._isSummarizing = false;
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Summary`;
-            }
+            if (btn) btn.disabled = false;
+            this._updateSummarizeButtonLabel();
         }
+    }
+
+    _renderSummaryResult(originalEl, translatedEl, result) {
+        if (originalEl) {
+            originalEl.innerHTML = '';
+            const origLabel = document.createElement('strong');
+            origLabel.textContent = 'Original';
+            const origText = document.createElement('p');
+            origText.textContent = result.original;
+            originalEl.append(origLabel, origText);
+        }
+        if (translatedEl) {
+            translatedEl.innerHTML = '';
+            const transLabel = document.createElement('strong');
+            transLabel.textContent = 'Translated';
+            const transText = document.createElement('p');
+            transText.textContent = result.translated;
+            translatedEl.append(transLabel, transText);
+        }
+    }
+
+    _updateSummarizeButtonLabel() {
+        const btn = document.getElementById('btn-session-summarize');
+        if (!btn) return;
+        btn.innerHTML = `${SUMMARIZE_BTN_ICON} ${this._currentSessionHasSummary ? 'Regenerate' : 'Summary'}`;
+    }
+
+    // Extract an existing "## AI Summary" section's Original/Translated text
+    // (mirrors aiSummary.formatSummarySection's exact layout).
+    _parseExistingSummary(text) {
+        const idx = text.indexOf('## AI Summary');
+        if (idx === -1) return null;
+        const section = text.slice(idx);
+        const originalMatch = section.match(/\*\*Original\*\*\s*\n+([\s\S]*?)\n+\*\*Translated\*\*/);
+        const translatedMatch = section.match(/\*\*Translated\*\*\s*\n+([\s\S]*?)(?:\n##|$)/);
+        if (!originalMatch) return null;
+        return {
+            original: originalMatch[1].trim(),
+            translated: translatedMatch ? translatedMatch[1].trim() : '',
+        };
     }
 
     parseSessionMeta(session) {
@@ -323,5 +517,70 @@ export class SessionManager {
 
     _escAttr(str) {
         return str.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ─── Transcript Q&A ─────────────────────────────────────
+
+    // No history persistence beyond the session file (KISS) — messages
+    // live only in the DOM for the current sessions-view visit.
+    async _askQuestion() {
+        const input = document.getElementById('input-qa-question');
+        const question = input?.value?.trim();
+        if (!question || this._isAsking) return;
+
+        const s = this.settingsManager.get();
+        if (!s.ai_endpoint || !s.ai_api_key || !s.ai_model) {
+            this._appendQAMessage('system', 'Configure AI settings first (Settings → AI tab) to use transcript Q&A.');
+            return;
+        }
+        if (!this._currentSessionText) return;
+
+        this._appendQAMessage('user', question);
+        if (input) input.value = '';
+
+        this._isAsking = true;
+        this._qaController = new AbortController();
+        const askBtn = document.getElementById('btn-qa-ask');
+        if (askBtn) askBtn.disabled = true;
+        const answerEl = this._appendQAMessage('assistant', 'Thinking...');
+
+        try {
+            const answer = await this.sessionQA.ask(question, this._currentSessionText, {
+                endpoint: s.ai_endpoint,
+                apiKey: s.ai_api_key,
+                model: s.ai_model,
+                signal: this._qaController.signal,
+            });
+            if (answerEl) answerEl.textContent = answer || '(empty response)';
+        } catch (err) {
+            if (answerEl) answerEl.textContent = `Error: ${err.message}`;
+        } finally {
+            this._isAsking = false;
+            if (askBtn) askBtn.disabled = false;
+        }
+    }
+
+    _appendQAMessage(role, text) {
+        const list = document.getElementById('qa-messages');
+        if (!list) return null;
+        const msgEl = document.createElement('div');
+        msgEl.className = `qa-message qa-message-${role}`;
+        msgEl.textContent = text;
+        list.appendChild(msgEl);
+        list.scrollTop = list.scrollHeight;
+        return msgEl;
+    }
+
+    _resetQA() {
+        this._cancelAsk();
+        const list = document.getElementById('qa-messages');
+        if (list) list.innerHTML = '';
+        const input = document.getElementById('input-qa-question');
+        if (input) input.value = '';
+    }
+
+    _cancelAsk() {
+        if (this._qaController) { this._qaController.abort(); this._qaController = null; }
+        this._isAsking = false;
     }
 }

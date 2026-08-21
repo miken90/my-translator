@@ -1346,6 +1346,78 @@ input[type="range"]::-webkit-slider-thumb:hover {
   }
 }
 
+/* ─── Modal Dialog (crash recovery) ─────────────────────── */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  width: 420px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px 0;
+}
+
+.modal-header h3 {
+  color: var(--text-primary);
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 16px 24px;
+}
+
+.modal-desc {
+  color: var(--text-secondary);
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+.modal-footer {
+  padding: 12px 24px 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.secondary-btn {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 8px 20px;
+  font-size: 0.85em;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.secondary-btn:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
 /* ─── About Tab ───────────────────────────────────────── */
 .about-app-header {
   display: flex;
@@ -1654,4 +1726,94 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .session-copy-btn:disabled:hover {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);
+}
+
+/* Export format select (overlay toolbar + session viewer) */
+.export-format-select {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+/* Transcript Q&A section in session viewer */
+.session-qa-section {
+  border-top: 1px solid var(--border-light);
+  padding: 12px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+}
+
+.session-qa-header {
+  margin-bottom: 2px;
+}
+
+.session-qa-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim, rgba(255, 255, 255, 0.5));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.qa-messages {
+  overflow-y: auto;
+  max-height: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.qa-message {
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  white-space: pre-wrap;
+}
+
+.qa-message-user {
+  background: var(--accent-glow);
+  color: var(--text-primary);
+  align-self: flex-end;
+  max-width: 85%;
+}
+
+.qa-message-assistant {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  align-self: flex-start;
+  max-width: 85%;
+}
+
+.qa-message-system {
+  background: transparent;
+  color: var(--text-dim, rgba(255, 255, 255, 0.5));
+  font-style: italic;
+}
+
+.qa-input-row {
+  display: flex;
+  gap: 6px;
+}
+
+.qa-input-row input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.qa-input-row input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }

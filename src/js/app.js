@@ -11,6 +11,7 @@ import { googleTTS } from './tts/google-tts.js';
 import { edgeTTSRust } from './tts/edge-tts.js';
 import { audioPlayer } from './audio-player.js';
 import { aiSummary } from './ai-summary.js';
+import { sessionQA } from './session-qa.js';
 import { WindowManager } from './window-manager.js';
 import { SettingsFormController } from './settings-form-controller.js';
 import { SessionManager } from './session-manager.js';
@@ -61,6 +62,7 @@ export class App {
             invoke,
             settingsManager,
             aiSummary,
+            sessionQA,
             showToast: (msg, type) => this._showToast(msg, type),
             showView: (view) => this._showView(view),
             getSessionMeta: () => ({
@@ -87,6 +89,9 @@ export class App {
         const transcriptContainer = document.getElementById('transcript-content');
         this.transcriptUI = new TranscriptUI(transcriptContainer);
         this.sessionManager.transcriptUI = this.transcriptUI;
+        // Crash-safe logging: flush the temp transcript every 20 segments,
+        // in addition to session-manager's own 2-minute timer.
+        this.transcriptUI.onSegmentFlushDue = () => this.sessionManager.flushTempTranscript();
 
         // Apply saved settings to UI
         this._applySettings(settingsManager.get());
@@ -97,6 +102,10 @@ export class App {
         this.sessionManager.bindEvents();
         this.ttsController.bindEvents();
         this.windowManager.bindEvents({ stopSession: () => this.stop() });
+
+        // Startup crash recovery: an orphan _recording.md means the previous
+        // session ended without a graceful stop() (crash/kill).
+        await this.sessionManager.checkForOrphanTempTranscript();
 
         // Bind keyboard shortcuts
         this._bindKeyboardShortcuts();

@@ -91,6 +91,18 @@
             </svg>
           </button>
 
+          <select id="select-export-format" class="export-format-select" title="Export format">
+            <option value="md">.md</option>
+            <option value="txt">.txt</option>
+          </select>
+          <button id="btn-export" class="icon-btn" title="Export transcript with timestamps">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          </button>
+
           <button id="btn-open-transcripts" class="icon-btn" title="Open saved transcripts folder">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
@@ -690,6 +702,18 @@
           </svg>
           Copy
         </button>
+        <select id="select-session-export-format" class="export-format-select" title="Export format">
+          <option value="md">.md</option>
+          <option value="txt">.txt</option>
+        </select>
+        <button id="btn-session-export" class="session-copy-btn" title="Export session">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Export
+        </button>
         <button id="btn-session-summarize" class="session-copy-btn" title="Summarize with AI">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -708,6 +732,42 @@
         </div>
         <div id="session-summary-original" class="session-summary-block"></div>
         <div id="session-summary-translated" class="session-summary-block"></div>
+      </div>
+      <!-- Transcript Q&A -->
+      <div class="session-qa-section">
+        <div class="session-qa-header">
+          <span class="session-qa-title">Ask about this session</span>
+        </div>
+        <p id="qa-hint" class="hint" style="display:none">Configure AI in Settings → AI to ask questions about this transcript.</p>
+        <div id="qa-messages" class="qa-messages"></div>
+        <div class="qa-input-row">
+          <input type="text" id="input-qa-question" placeholder="Ask a question about this session..." autocomplete="off" />
+          <button id="btn-qa-ask" class="icon-btn" title="Ask">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ CRASH RECOVERY DIALOG ═══════════════════ -->
+  <div id="recovery-dialog" class="modal-overlay" style="display:none">
+    <div class="modal-card">
+      <div class="modal-header">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
+          <path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        </svg>
+        <h3>Recover previous session?</h3>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">The app didn't shut down cleanly last time. An in-progress transcript was found — recover it as a saved session, or discard it.</p>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-recovery-discard" class="secondary-btn">Discard</button>
+        <button id="btn-recovery-recover" class="primary-btn">Recover</button>
       </div>
     </div>
   </div>
