@@ -424,6 +424,32 @@ if (!this.isRunning) {
 - **Input validation** — Validate API responses before using
 - **Process safety** — Use `std::process` carefully; validate spawned process inputs
 
+### CSS Design Tokens (`src/styles/main.css`)
+
+`main.css` ships raw (no bundler, no preprocessor). Its `:root` block defines scales that
+every rule should draw from:
+
+- **Colors** — theme colors (`--accent`, `--error`, `--success`, `--warning`, surfaces
+  `--surface-1/2/3`, named accents like `--accent-speaker`) plus `--text-*` / `--border-*`.
+- **Spacing** — `--space-3xs` (2px) through `--space-3xl` (24px).
+- **Type** — `--font-size-xs` (10px) through `--font-size-xl` (16px).
+- **Z-index** — `--z-floating` / `--z-compact-reveal` / `--z-compact-catch` / `--z-overlay`, named by stacking intent.
+- **Control heights** — `--control-h-sm/md/lg`, the overlay chrome's interactive-control heights only.
+- **Radius** — `--radius-2xs` through `--radius-lg`.
+
+**Allowlisted color literals** (not tokenized, checked by rule rather than by listing every
+site): an alpha variant whose RGB triple matches an existing `:root` color token; black
+shadow colors (`rgba(0,0,0,*)`); the header-wash color (`rgba(20,20,30,*)`); and the single
+`#ffffff` fallback of the JS-injected `--transcript-font-color` property. A handful of
+one-off pixel values also stay literal by deliberate judgment call (hairlines, one-off
+sizes, the `select` arrow's mechanical offset) — see `plans/260821-1640-uiux-overhaul/phase-03-design-token-layer.md` §3c for the full rationale.
+
+**Guard test**: `tests/js/css-tokens.test.js` enforces this mechanically — no `var()`
+references an undefined custom property (except the JS-injected exemptions:
+`--transcript-font-size`, `--transcript-font-color`, `--overlay-opacity`), no `:root`
+token goes unreferenced, and no color literal outside `:root` falls outside the allowlist
+rules above. Run it via `npm test` whenever `main.css`'s `:root` block changes.
+
 ---
 
 ## Testing & CI/CD Standards
