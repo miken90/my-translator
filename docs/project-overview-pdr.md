@@ -62,10 +62,11 @@ A privacy-first, real-time speech translation overlay application. Captures syst
 - **ElevenLabs** (premium) — High-quality voices, streaming
 
 ### Session Management
-- Auto-save transcripts as `.md` files locally
+- Auto-save transcripts as `.md` files locally, with crash-safe temp flush (every 20 segments + 2min timer) and orphan-transcript recovery on startup
 - Session history viewer
 - Copy/paste text from overlay
-- Export transcripts (future)
+- Export transcripts as `.md`/`.txt` with per-entry timestamps
+- AI summary persisted into the session file (regenerate replaces it); transcript Q&A over a loaded session
 
 ### Other
 - Configurable keyboard shortcuts
@@ -160,13 +161,12 @@ Unlimited target language pairs via Soniox translation engine.
 See `project-roadmap.md` for detailed milestones and future features.
 
 **Current focus** (v0.5.x):
-- Windows-only cleanup, test safety net, and Rust/frontend refactor
-- Stabilize long meeting sessions (crash-safe transcript logging)
-- Durable session log + persisted AI summary
+- Windows-only cleanup, test safety net, and Rust/frontend refactor — done
+- Stabilize long meeting sessions (crash-safe transcript logging) — done
+- Durable session log + persisted AI summary + export + transcript Q&A — done
 
 **Near-term** (v0.6.x):
-- Export transcripts (SRT, VTT, TXT)
-- Transcript Q&A on saved sessions
+- Export transcripts as SRT (current export covers `.md`/`.txt` only)
 - Custom keyboard shortcut configuration
 
 ## Dependencies & Integrations

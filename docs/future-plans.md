@@ -1,6 +1,19 @@
 # Future Plans & Feature Requests
 
-> Cập nhật lần cuối: 2026-03-22
+> Cập nhật lần cuối: 2026-08-21
+
+---
+
+## Quyết định phạm vi (2026-08-21, meeting-focus-optimize-refactor)
+
+App tái định vị thành công cụ **Windows-only cho meeting + xem video**. Theo đó:
+- ✅ **Copy / Export Transcript** — đã ship (Phase 6): copy clipboard + export `.md`/`.txt` kèm timestamp, luôn serialize từ `sessionLog` đầy đủ.
+- ✅ **AI Summarize / Q&A** — đã ship (Phase 6): tóm tắt lưu vào file session (`## AI Summary`), regenerate được; Q&A hỏi đáp trên transcript (map-reduce chunking cho transcript dài, không dùng retrieval/embeddings).
+- ❌ **File Upload Mode** — **cắt khỏi phạm vi sản phẩm** (out of product scope). Không phù hợp use case meeting/video real-time; yêu cầu ffmpeg + lazy-processing pipeline riêng biệt, effort lớn không tương xứng.
+- ❌ **OCR Screen Translate** — **cắt khỏi phạm vi sản phẩm**. Đổi hẳn UX paradigm (chọn vùng màn hình tĩnh) khác với real-time audio; phụ thuộc macOS Vision framework — app giờ Windows-only nên hướng triển khai cũ không còn áp dụng được.
+- ❌ **Furigana** — **cắt khỏi phạm vi sản phẩm**. Niche, chỉ phù hợp app học tiếng Nhật chuyên biệt, ngoài phạm vi "meeting + video" đã chốt.
+
+Audio Normalization vẫn còn trong backlog, chưa bị cắt.
 
 ---
 
@@ -10,12 +23,12 @@
 
 | # | Feature | Value | Code Complexity | Perf Impact | Effort ước tính | Ưu tiên |
 |---|---------|-------|----------------|-------------|----------------|---------|
-| 1 | Copy / Export Transcript | ⭐⭐⭐ | 🟢 Rất thấp | 🟢 Không có | ~0.5 ngày | 🔴 P1 |
-| 2 | Audio Normalization | ⭐⭐⭐ | 🟢 Rất thấp | 🟢 Không đáng kể | ~1 ngày | 🔴 P1 |
-| 3 | AI Summarize / Q&A | ⭐⭐⭐ | 🟡 Thấp-Trung | 🟢 Không có (async) | ~2 ngày | 🟠 P2 |
-| 4 | Furigana (Hiragana) | ⭐⭐ | 🟡 Thấp | 🟡 Nhẹ (~10-50ms/segment) | ~1 ngày | 🟡 P3 |
-| 5 | File Upload Mode | ⭐⭐⭐⭐ | 🔴 Cao | 🟡 Trung bình | ~5-7 ngày | 🟡 P3 |
-| 6 | OCR Screen Translate | ⭐⭐⭐ | 🔴 Rất cao | 🟡 Nhẹ (~500ms/shot) | ~7-10 ngày | 🟢 P4 |
+| 1 | Copy / Export Transcript | ⭐⭐⭐ | 🟢 Rất thấp | 🟢 Không có | ~0.5 ngày | ✅ Shipped (Phase 6) |
+| 2 | Audio Normalization | ⭐⭐⭐ | 🟢 Rất thấp | 🟢 Không đáng kể | ~1 ngày | 🔴 P1 (backlog) |
+| 3 | AI Summarize / Q&A | ⭐⭐⭐ | 🟡 Thấp-Trung | 🟢 Không có (async) | ~2 ngày | ✅ Shipped (Phase 6) |
+| 4 | Furigana (Hiragana) | ⭐⭐ | 🟡 Thấp | 🟡 Nhẹ (~10-50ms/segment) | ~1 ngày | ❌ Cut — out of product scope |
+| 5 | File Upload Mode | ⭐⭐⭐⭐ | 🔴 Cao | 🟡 Trung bình | ~5-7 ngày | ❌ Cut — out of product scope |
+| 6 | OCR Screen Translate | ⭐⭐⭐ | 🔴 Rất cao | 🟡 Nhẹ (~500ms/shot) | ~7-10 ngày | ❌ Cut — out of product scope |
 
 ### Lý do thay đổi so với đánh giá ban đầu
 
@@ -51,7 +64,7 @@ macOS Vision framework yêu cầu Objective-C FFI trong Rust (`objc` crate) — 
 
 ---
 
-### 🔴 P1 — Copy / Export Transcript
+### ✅ Shipped (Phase 6) — Copy / Export Transcript
 
 **Nguồn**:
 - Hùng Vũ — yêu cầu "copy text" trong OCR feature
@@ -68,7 +81,7 @@ macOS Vision framework yêu cầu Objective-C FFI trong Rust (`objc` crate) — 
 
 ---
 
-### 🟠 P2 — File Upload Mode (Video/Audio → Sub + TTS)
+### ❌ Cut (out of product scope) — File Upload Mode (Video/Audio → Sub + TTS)
 
 **Nguồn**: Nguyễn Đức + Lâm Ngọc — comment public
 **Vấn đề**: Người dùng có nội dung offline (khoá học, video ghi sẵn) muốn dịch mà không cần real-time.
@@ -86,7 +99,7 @@ macOS Vision framework yêu cầu Objective-C FFI trong Rust (`objc` crate) — 
 
 ---
 
-### 🟠 P2 — OCR Screen Translate
+### ❌ Cut (out of product scope) — OCR Screen Translate
 
 **Nguồn**: Hùng Vũ (@hungvu.net) — Facebook Messenger
 **Reference**: [TSnap](https://www.tsnap.tech/) — Instant Screenshot Translation for macOS
@@ -105,7 +118,7 @@ macOS Vision framework yêu cầu Objective-C FFI trong Rust (`objc` crate) — 
 
 ---
 
-### 🟡 P3 — AI Summarize / Q&A
+### ✅ Shipped (Phase 6) — AI Summarize / Q&A
 
 **Nguồn**: Nguyễn Thanh Long — comment public
 **Yêu cầu**: Sau session dịch, gọi LLM để tóm tắt nội dung hoặc cho phép user hỏi đáp về những gì vừa nghe.
@@ -122,7 +135,7 @@ macOS Vision framework yêu cầu Objective-C FFI trong Rust (`objc` crate) — 
 
 ---
 
-### 🟢 P4 — Furigana (Hiragana trên Kanji)
+### ❌ Cut (out of product scope) — Furigana (Hiragana trên Kanji)
 
 **Nguồn**: Nhat Pham — comment public
 **Yêu cầu**: Hiển thị phiên âm hiragana (furigana) phía trên kanji trong transcript tiếng Nhật.

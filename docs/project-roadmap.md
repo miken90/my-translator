@@ -233,6 +233,10 @@
 | AI session summarization (OpenAI-compatible) | v0.6.0 | ✅ Stable |
 | Segment pairing fix (LIFO + monotonic IDs) | v0.5.4 | ✅ Stable |
 | Faster audio batching (100ms) | v0.5.4 | ✅ Stable |
+| Crash-safe logging (20-segment flush + orphan recovery) | Phase 6 | ✅ Stable |
+| Copy/Export transcript (.md/.txt with timestamps) | Phase 6 | ✅ Stable |
+| AI summary persisted into session file (regenerate) | Phase 6 | ✅ Stable |
+| Transcript Q&A (map-reduce chunking, no retrieval/embeddings) | Phase 6 | ✅ Stable |
 
 ---
 
@@ -240,11 +244,11 @@
 
 | Feature | Priority | Target Version | Effort | Status |
 |---------|----------|-----------------|--------|--------|
-| Export transcripts (SRT/VTT/TXT) | P1 | v0.7 | 0.5d | 🔄 Backlog |
+| Export transcripts as SRT | P1 | v0.7 | 0.5d | 🔄 Backlog (`.md`/`.txt` already shipped) |
 | Audio normalization | P1 | v0.7 | 1d | 🔄 Backlog |
-| File upload mode | P2 | v0.8 | 5-7d | 🔄 Backlog |
-| Screen OCR translation | P3 | v0.9 | 7-10d | 🔄 Backlog |
-| Furigana (Japanese) | P2 | v0.9 | 1d | 🔄 Backlog |
+| File upload mode | — | — | — | ❌ Cut — out of product scope |
+| Screen OCR translation | — | — | — | ❌ Cut — out of product scope |
+| Furigana (Japanese) | — | — | — | ❌ Cut — out of product scope |
 | Plugin system | Future | v1.1+ | TBD | 🔄 Research |
 | Mobile companion app | Future | v1.2+ | TBD | 🔄 Research |
 | Collaborative translation | Future | v1.2+ | TBD | 🔄 Research |
