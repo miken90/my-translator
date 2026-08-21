@@ -1,6 +1,6 @@
 # Project Overview & Product Development Requirements
 
-**My Translator** — Real-time speech translation desktop application for macOS and Windows.
+**My Translator** — Real-time speech translation desktop application for Windows.
 
 ## Executive Summary
 
@@ -14,7 +14,7 @@ A privacy-first, real-time speech translation overlay application. Captures syst
 | **Release Date** | 2026-04-06 |
 | **License** | MIT |
 | **Author** | phuc-nt (GitHub: [phuc-nt/my-translator](https://github.com/phuc-nt/my-translator)) |
-| **Platforms** | macOS (13.0+, ARM + Intel, signed & notarized), Windows (10/11) |
+| **Platforms** | Windows (10/11) |
 | **Repository** | https://github.com/phuc-nt/my-translator |
 
 ## Target Users
@@ -36,13 +36,12 @@ A privacy-first, real-time speech translation overlay application. Captures syst
 ## Core Features
 
 ### Audio Capture
-- **System audio** (ScreenCaptureKit/WASAPI) — capture speaker output
+- **System audio** (WASAPI) — capture speaker output
 - **Microphone** (cross-platform CPAL) — capture input device
 - **Both** — simultaneous system + mic for two-way translation in video calls
 
 ### Speech-to-Text & Translation
 - **Cloud STT** — Soniox API (WebSocket-based, 70+ languages)
-- **Local STT** (experimental, Apple Silicon only) — MLX + Whisper, fully offline
 - **Real-time translation** — Inline within STT response
 - **Custom context** — Domain-specific translation terms and context hints
 
@@ -69,23 +68,19 @@ A privacy-first, real-time speech translation overlay application. Captures syst
 - Export transcripts (future)
 
 ### Other
-- Auto-update via GitHub releases
 - Configurable keyboard shortcuts
 - Always-on-top overlay with adjustable opacity
 - Settings persistence in OS config directory
 
 ## Feature Support Matrix
 
-| Feature | macOS | Windows | Notes |
-|---------|-------|---------|-------|
-| System Audio | ✅ | ✅ | ScreenCaptureKit (macOS), WASAPI (Win) |
-| Microphone | ✅ | ✅ | CPAL library |
-| Local STT | ✅ | ❌ | Apple Silicon only; requires MLX setup |
-| Edge TTS | ✅ | ✅ | Rust proxy backend |
-| Google TTS | ✅ | ✅ | REST API |
-| ElevenLabs TTS | ✅ | ✅ | WebSocket streaming |
-| Auto-update | ✅ | ✅ | GitHub releases via Tauri plugin |
-| Code signing | ✅ | — | macOS only; security requirement |
+| Feature | Windows | Notes |
+|---------|---------|-------|
+| System Audio | ✅ | WASAPI |
+| Microphone | ✅ | CPAL library |
+| Edge TTS | ✅ | Rust proxy backend |
+| Google TTS | ✅ | REST API |
+| ElevenLabs TTS | ✅ | WebSocket streaming |
 
 ## Privacy & Security Model
 
@@ -98,7 +93,6 @@ A privacy-first, real-time speech translation overlay application. Captures syst
 ### Security Practices
 - **HTTPS/WSS only** — All API connections encrypted
 - **No authentication required** — User authentication only to external APIs (Soniox, Google, ElevenLabs)
-- **macOS code signing** — App signed and notarized; ensures integrity and safety
 - **Transparent dependencies** — All dependencies open-source and auditable
 
 ## Supported Languages
@@ -121,7 +115,6 @@ Unlimited target language pairs via Soniox translation engine.
 | Latency (~2-3s) | Not suitable for live conversation | Accept as trade-off for accuracy |
 | Soniox API rate limits | Burst audio causes queue | Buffer and stream continuously |
 | WASAPI Windows loopback | Some apps don't route to loopback | Use "Both" mode (system + mic) or HDMI loopback |
-| MLX model size (Apple Silicon) | ~10GB disk, 8GB+ RAM | Document system requirements clearly |
 | Browser audio limitations | TTS in two-way mode causes feedback | Disable TTS in two-way mode automatically |
 
 ## Success Metrics
@@ -135,14 +128,13 @@ Unlimited target language pairs via Soniox translation engine.
 
 ## Acceptance Criteria
 
-✅ Application builds cleanly on macOS and Windows
-✅ Audio capture (system + mic) functional on both platforms
+✅ Application builds cleanly on Windows
+✅ Audio capture (system + mic) functional
 ✅ Soniox STT + translation working end-to-end
 ✅ UI renders transcripts with proper scrolling and font sizing
 ✅ TTS plays audio without crashes
 ✅ Settings persist across sessions
-✅ Auto-update checks and prompts for new versions
-✅ Installation guides complete for both platforms
+✅ Installation guide complete for Windows
 ✅ No API keys or secrets in source code
 
 ## Non-Functional Requirements
@@ -161,28 +153,21 @@ Unlimited target language pairs via Soniox translation engine.
 - **Versioning**: Semantic versioning (major.minor.patch)
 - **Release cycle**: 4-6 week sprints, monthly releases
 - **Beta testing**: GitHub releases with pre-release tags
-- **Distribution**: GitHub releases page, auto-updater via Tauri plugin
-- **Code signing**: macOS builds signed and notarized before release
+- **Distribution**: GitHub releases page (portable .exe, manual download)
 
 ## Roadmap Overview
 
 See `project-roadmap.md` for detailed milestones and future features.
 
 **Current focus** (v0.5.x):
-- Stabilize two-way translation mode
-- Improve audio normalization for low-volume sources
-- Enhance local MLX pipeline robustness
+- Windows-only cleanup, test safety net, and Rust/frontend refactor
+- Stabilize long meeting sessions (crash-safe transcript logging)
+- Durable session log + persisted AI summary
 
 **Near-term** (v0.6.x):
 - Export transcripts (SRT, VTT, TXT)
-- AI summarization and Q&A on sessions
+- Transcript Q&A on saved sessions
 - Custom keyboard shortcut configuration
-
-**Future** (v1.0+):
-- File upload mode (offline video/audio processing)
-- Screen OCR translation (macOS Vision)
-- Furigana support (Japanese learners)
-- Plugin system for custom providers
 
 ## Dependencies & Integrations
 
@@ -197,8 +182,7 @@ See `project-roadmap.md` for detailed milestones and future features.
 - **Rust** — Backend for audio capture and API proxies
 - **ES modules (Vanilla JS)** — Frontend (no framework, no build step)
 - **CPAL** — Cross-platform microphone capture
-- **MLX** (experimental) — Local offline STT/translation (Apple Silicon)
-- **GitHub Actions** — CI/CD and signed release builds
+- **GitHub Actions** — CI/CD for Windows release builds
 
 ## Version History
 

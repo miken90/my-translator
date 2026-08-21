@@ -8,7 +8,7 @@
 | **Release Date** | 2026-04-08 |
 | **GitHub Stars** | 600+ |
 | **Active Users** | ~1,000+ monthly |
-| **Platforms** | macOS (ARM+Intel), Windows |
+| **Platforms** | Windows (macOS support discontinued) |
 | **Project Stage** | Mature (1+ years active) |
 
 ## Version History & Milestones
@@ -188,10 +188,7 @@
 - ✅ Real-time two-way translation (system + mic)
 - ✅ Export transcripts (multiple formats)
 - ✅ TTS narration (3 providers)
-- ✅ Local offline mode (Apple Silicon)
 - ✅ Session management & history
-- ✅ File upload translation
-- ✅ Screen OCR translation
 - ✅ Comprehensive documentation
 
 **Milestone**: Estimated Q3 2026
@@ -263,17 +260,14 @@
 | WASAPI loopback unavailable on some Windows setups | High | Use "Both" mode (system+mic) or setup virtual audio device | v0.6 |
 | Google TTS rate limit (1M chars/month free tier) | Medium | Switch to Edge TTS (free, unlimited) | Document clearly in TTS guide |
 | Two-way translation auto-detect accuracy | Medium | Manual language selection available | v0.7 (ML-based detection) |
-| Local MLX model size (~10GB) | Medium | Documented in setup; optional feature | v1.0 (compress models) |
 | Browser CSP prevents direct WebSocket for TTS | Low | Use Rust proxy (implemented) | No change needed |
 
 ### Platform-Specific Limitations
 
 | Platform | Limitation | Reason | Workaround |
 |----------|-----------|--------|-----------|
-| **macOS <13.0** | ScreenCaptureKit requires 13.0+ | OS-level API requirement | Update macOS or use Mic only |
 | **Windows ARM** | WASAPI limited on ARM64 | Limited testing/hardware | Use Mic capture |
-| **Linux** | Not supported | No resources for Linux support | Consider in v2.0+ |
-| **Apple Silicon (non-M1)** | Local MLX on M2/M3 untested | Limited testing | Report issues, we'll fix |
+| **macOS / Linux** | Not supported (discontinued) | Windows-only scope | Use last macOS release or git history |
 
 ---
 

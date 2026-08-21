@@ -1,19 +1,12 @@
 # Deployment & Build Guide
 
+> **Windows-only.** macOS support and the auto-update / CI release infrastructure described further below are historical and no longer apply. For the current build/release process, see the root `CLAUDE.md` and `scripts/build-release.sh`.
+
 This guide covers building My Translator from source, setting up the development environment, and releasing new versions.
 
 ## Prerequisites
 
 ### System Requirements
-
-#### macOS
-- **OS**: macOS 13.0 or later
-- **Architecture**: ARM64 (M1+) or Intel x86_64
-- **RAM**: 8GB minimum (16GB recommended)
-- **Disk**: 2GB available (build artifacts)
-- **Tools**:
-  - Xcode Command Line Tools (includes clang, git)
-  - Homebrew (optional, for package management)
 
 #### Windows
 - **OS**: Windows 10 (Build 19041) or Windows 11
@@ -83,8 +76,6 @@ npm install
 
 This installs:
 - `@tauri-apps/cli` — Tauri build tools
-- `@tauri-apps/plugin-updater` — Auto-updater runtime
-- `@tauri-apps/plugin-process` — Process management
 
 ---
 
@@ -92,14 +83,11 @@ This installs:
 
 ### Development Build (Debug)
 
-**macOS / Linux / Windows**:
 ```bash
 npm run tauri build
 ```
 
-**Output**:
-- macOS: `src-tauri/target/release/bundle/macos/MyTranslator.app`
-- Windows: `src-tauri/target/release/MyTranslator.exe`
+**Output**: `src-tauri/target/release/my-translator.exe`
 
 **Characteristics**:
 - Includes debug symbols
@@ -120,87 +108,6 @@ npm run tauri build --release
 
 ---
 
-## Building with Code Signing (macOS)
-
-macOS requires code signing for the app to run without quarantine warnings and to enable auto-updates.
-
-### Prerequisites
-
-1. **Apple Developer Account** — Required for code signing certificates
-2. **Certificate**: Obtain from Apple Developer portal
-   - Type: "Developer ID Application" or "Apple Distribution"
-3. **Provisioning Profile** (optional for direct distribution)
-
-### Setup Code Signing
-
-1. **Export certificate** as `.p8` or `.p12` file with password
-2. **Set environment variables**:
-
-```bash
-export APPLE_CERTIFICATE_PATH="/path/to/certificate.p8"
-export APPLE_CERTIFICATE_PASSWORD="your-password"
-export APPLE_DEVELOPER_IDENTITY="Developer ID Application: Name (ABC123XYZ)"
-```
-
-3. **Update tauri.conf.json** (if needed):
-
-```json
-{
-  "bundle": {
-    "macOS": {
-      "signingIdentity": "Developer ID Application: Name (ABC123XYZ)"
-    }
-  }
-}
-```
-
-### Build Signed App
-
-```bash
-npm run tauri build --release
-```
-
-**Output**: Signed app bundle ready for distribution + notarization
-
-### Notarization (Required for Gatekeeper)
-
-Notarization allows the app to run on other macOS systems without quarantine warnings.
-
-1. **Install Apple Notary tool** (via Xcode):
-```bash
-xcode-select --install
-```
-
-2. **Generate app-specific password**:
-   - Visit https://appleid.apple.com/
-   - Generate "App-Specific Password"
-
-3. **Run notarization**:
-
-```bash
-xcrun notarytool submit build/MyTranslator.dmg \
-  --apple-id "your-apple-id@example.com" \
-  --password "app-specific-password" \
-  --team-id "ABC123XYZ"
-```
-
-4. **Check notarization status**:
-
-```bash
-xcrun notarytool info <submission-id> \
-  --apple-id "your-apple-id@example.com" \
-  --password "app-specific-password" \
-  --team-id "ABC123XYZ"
-```
-
-5. **Staple ticket** (after approval):
-
-```bash
-xcrun stapler staple build/MyTranslator.app
-```
-
----
-
 ## Windows Code Signing (Optional)
 
 Windows does not require code signing for release, but signing adds trust indicators.
@@ -212,8 +119,8 @@ Windows does not require code signing for release, but signing adds trust indica
 3. **Set environment variables**:
 
 ```bash
-set APPLE_CERTIFICATE_PATH=C:\path\to\certificate.pfx
-set APPLE_CERTIFICATE_PASSWORD=your-password
+set WINDOWS_CERTIFICATE_PATH=C:\path\to\certificate.pfx
+set WINDOWS_CERTIFICATE_PASSWORD=your-password
 ```
 
 ### Build Signed
@@ -241,169 +148,33 @@ The repository includes `.github/workflows/release.yml` for automated builds and
     └────────┬───────────────────────┘
              │
     ┌────────▼────────────────────────┐
-    │ Matrix: [macos, windows]         │
-    │ ├─ Checkout code                 │
-    │ ├─ Setup Rust + Node.js          │
-    │ └─ Install dependencies          │
-    └────────┬───────────────────────┘
-             │
-    ┌────────▼────────────────────────┐
-    │ macOS Build                      │
-    │ ├─ Build app (release)           │
-    │ ├─ Code sign (from secrets)      │
-    │ ├─ Notarize                      │
-    │ └─ Create DMG                    │
+    │ Setup Rust + Node.js             │
+    │ Install dependencies             │
     └────────┬───────────────────────┘
              │
     ┌────────▼────────────────────────┐
     │ Windows Build                    │
     │ ├─ Build app (release)           │
-    │ ├─ Create MSI installer          │
     │ └─ Code sign (optional)          │
     └────────┬───────────────────────┘
              │
     ┌────────▼────────────────────────┐
     │ Create GitHub Release            │
-    │ ├─ Upload DMG (macOS)            │
-    │ ├─ Upload MSI (Windows)          │
-    │ ├─ Generate latest.json          │
+    │ ├─ Upload portable .exe zip      │
     │ └─ Draft release notes           │
-    └────────┬───────────────────────┘
-             │
-    ┌────────▼────────────────────────┐
-    │ Auto-update Available            │
-    │ Users notified in-app            │
     └─────────────────────────────────┘
 ```
-
-### Secrets Required in GitHub
-
-Set these in repository **Settings → Secrets and Variables → Actions**:
-
-| Secret | Purpose | Example |
-|--------|---------|---------|
-| `APPLE_CERTIFICATE` | Base64 code signing cert | (base64-encoded `.p8`) |
-| `APPLE_CERTIFICATE_PASSWORD` | Code signing password | (password) |
-| `APPLE_DEVELOPER_IDENTITY` | Signing identity | `Developer ID Application: Name (ABC)` |
-| `APPLE_TEAM_ID` | Apple Team ID | `ABC123XYZ` |
-| `APPLE_ID` | Apple ID for notarization | `name@example.com` |
-| `APPLE_ID_PASSWORD` | App-specific password | (app-specific password) |
 
 ### Manual Release Trigger
 
 To create a release:
 
-1. **Create local tag**:
-```bash
-git tag v0.6.0
-git push origin main --tags
-```
-
-2. **GitHub Actions automatically**:
-   - Builds both macOS (signed, notarized) and Windows
-   - Creates GitHub Release
-   - Uploads artifacts
-   - Generates `latest.json` for auto-updater
-
-3. **Verify release**:
-   - Visit https://github.com/phuc-nt/my-translator/releases
-   - Confirm artifacts are uploaded and checksummed
-
----
-
-## Auto-Update Mechanism
-
-The app checks for updates via `latest.json` endpoint on GitHub releases.
-
-### latest.json Format
-
-```json
-{
-  "version": "0.6.0",
-  "notes": "Bug fixes and performance improvements",
-  "pub_date": "2026-05-15T10:00:00Z",
-  "platforms": {
-    "darwin-aarch64": {
-      "signature": "...",
-      "url": "https://github.com/.../MyTranslator_0.6.0_aarch64.dmg"
-    },
-    "darwin-x86_64": {
-      "signature": "...",
-      "url": "https://github.com/.../MyTranslator_0.6.0_x64.dmg"
-    },
-    "windows-x86_64": {
-      "signature": "...",
-      "url": "https://github.com/.../MyTranslator_0.6.0_x64-setup.nsis.zip"
-    }
-  }
-}
-```
-
-### Configuration
-
-In `src-tauri/tauri.conf.json`:
-
-```json
-{
-  "plugins": {
-    "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6...",
-      "endpoints": [
-        "https://github.com/phuc-nt/my-translator/releases/latest/download/latest.json"
-      ]
-    }
-  }
-}
-```
-
-### Update Flow
-
-1. **App startup**: Auto-checks for updates via `updater.check()`
-2. **User notified**: "New version available" modal
-3. **User accepts**: Download + verify signature
-4. **Install on restart**: App replaces binaries on next launch
-
----
-
-## Local Pipeline Setup (Optional)
-
-For offline/local STT (Apple Silicon only):
-
-### Prerequisites
-
-- **Python 3.10+** installed
-- **MLX, Whisper, Qwen2.5** models (~10GB disk)
-
-### Setup Models
-
-```bash
-cd scripts
-python3 setup_mlx.py
-```
-
-This downloads and caches models to:
-```
-~/Library/Application Support/my-translator/mlx/
-```
-
-### Verify Setup
-
-```bash
-python3 local_pipeline.py < test_audio.json
-```
+1. **Build**: `bash scripts/build-release.sh [version]`
+2. **Create GitHub Release** and upload `dist/MyTranslator-v{version}-windows-x64.zip`
 
 ---
 
 ## Troubleshooting Build Issues
-
-### macOS
-
-| Issue | Solution |
-|-------|----------|
-| `xcrun: error: unable to find utility` | Run `xcode-select --install` |
-| Code signing failed | Verify certificate path and password in env vars |
-| Notarization timeout | Retry; Apple service occasionally slow |
-| `target/release/` doesn't exist | Run `cargo build --release` first |
 
 ### Windows
 
@@ -425,32 +196,9 @@ python3 local_pipeline.py < test_audio.json
 
 ## Distribution
 
-### macOS Distribution
-
-1. **Via DMG** (default):
-   - Double-click to mount
-   - Drag app to Applications folder
-   - Run from Applications
-
-2. **Via Homebrew Cask** (future consideration):
-   ```bash
-   brew install my-translator
-   ```
-
-3. **Direct binary** (advanced):
-   - Export app from build artifacts
-   - Ensure signed & notarized
-
 ### Windows Distribution
 
-1. **Via MSI Installer** (default):
-   - Run `.msi` file
-   - Follow installer prompts
-   - App installed to `Program Files\MyTranslator\`
-
-2. **Via Portable Exe** (alternative):
-   - Ship standalone `.exe`
-   - No installation required
+Portable `.exe` only (no installer) — ship `dist/MyTranslator-v{version}-windows-x64.zip`, no installation required.
    - Settings still persisted locally
 
 ---
@@ -465,14 +213,11 @@ Before releasing a new version:
 - [ ] Update `docs/project-roadmap.md` (milestone status)
 - [ ] Update `docs/project-changelog.md` (new entry)
 - [ ] Run full test suite: `npm run test` (if tests exist)
-- [ ] Test build on macOS: `npm run tauri build`
-- [ ] Test build on Windows: `npm run tauri build`
+- [ ] Test build on Windows: `bash scripts/build-release.sh [version]`
 - [ ] Commit changes: `git commit -m "chore: bump to vX.Y.Z"`
 - [ ] Tag release: `git tag vX.Y.Z`
 - [ ] Push with tags: `git push origin main --tags`
-- [ ] Monitor GitHub Actions for build completion
-- [ ] Verify GitHub Release created with correct artifacts
-- [ ] Test auto-update on real machines
+- [ ] Create GitHub Release and upload `dist/MyTranslator-v{version}-windows-x64.zip`
 - [ ] Announce release on social channels
 
 ---
@@ -494,8 +239,7 @@ npm run tauri build
 ### Binary Size Reduction
 
 Current sizes:
-- **macOS DMG**: ~70MB (code-signed)
-- **Windows MSI**: ~50MB
+- **Windows portable exe**: ~50MB
 
 Strategies:
 - Strip debug symbols: `strip build/release/my-translator`

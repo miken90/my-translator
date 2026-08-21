@@ -1,4 +1,6 @@
-# Installation Guide
+# Installation Guide (Archived — macOS)
+
+> ⚠️ **Archived.** macOS support was discontinued; this guide applies only to legacy macOS releases. For current builds, see the [Windows installation guide](installation_guide_win.md).
 
 Step-by-step guide to install and use **My Translator** on macOS.
 
