@@ -276,3 +276,49 @@ fn simple_resample(samples: &[f32], from_rate: u32, to_rate: u32) -> Vec<f32> {
 
     output
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resample_is_identity_when_rates_match() {
+        let samples = vec![0.1, -0.2, 0.3, -0.4];
+        let out = simple_resample(&samples, 16000, 16000);
+        assert_eq!(out, samples);
+    }
+
+    #[test]
+    fn resample_returns_empty_for_empty_input() {
+        let out = simple_resample(&[], 48000, 16000);
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn downsample_48khz_to_16khz_produces_exact_length_for_divisible_input() {
+        // 480 samples at 48000 -> 16000 (ratio 3.0) divides evenly: 480 / 3 = 160.
+        let samples = vec![0.5_f32; 480];
+        let out = simple_resample(&samples, 48000, 16000);
+        assert_eq!(out.len(), 160);
+    }
+
+    #[test]
+    fn downsample_known_values_use_linear_interpolation() {
+        // from_rate/to_rate = 1.5. samples.len()=4 -> output_len = (4/1.5) as usize = 2.
+        let samples = vec![0.0_f32, 1.0, 2.0, 3.0];
+        let out = simple_resample(&samples, 3, 2);
+        assert_eq!(out.len(), 2);
+        // i=0: src_pos=0 -> samples[0] = 0.0
+        assert!((out[0] - 0.0).abs() < 1e-6);
+        // i=1: src_pos=1.5, idx=1, frac=0.5 -> lerp(samples[1], samples[2], 0.5) = 1.5
+        assert!((out[1] - 1.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn upsample_produces_more_samples_than_input() {
+        // from_rate/to_rate = 0.5 (upsampling doubles the rate).
+        let samples = vec![0.0_f32, 1.0];
+        let out = simple_resample(&samples, 8000, 16000);
+        assert_eq!(out.len(), 4); // (2 / 0.5) as usize = 4
+    }
+}

@@ -12,6 +12,13 @@ class AudioPlayer {
         this._enabled = true;
         this._currentSource = null; // Currently playing AudioBufferSourceNode
         this._maxQueueSize = 10;    // Max buffers in queue before dropping old ones
+
+        // Backpressure policy: drop-oldest. When the queue is full, the
+        // newest chunk still gets enqueued and the oldest ones are dropped
+        // to make room — narration falls further out of sync with the
+        // transcript rather than growing memory unboundedly. Callers (e.g.
+        // tts-controller) can observe this via onBackpressure.
+        this.onBackpressure = null; // (droppedCount) => {}
     }
 
     /**
@@ -54,11 +61,13 @@ class AudioPlayer {
             // Decode MP3 → AudioBuffer
             const audioBuffer = await this.audioContext.decodeAudioData(bytes.buffer.slice(0));
 
-            // Backlog management: if queue is too large, drop oldest
+            // Backpressure policy: drop-oldest — keep the queue bounded at
+            // _maxQueueSize, surfacing the drop via onBackpressure.
             if (this._queue.length >= this._maxQueueSize) {
                 const dropped = this._queue.length - this._maxQueueSize + 1;
                 this._queue.splice(0, dropped);
                 console.warn(`[AudioPlayer] Dropped ${dropped} stale audio buffer(s)`);
+                this.onBackpressure?.(dropped);
             }
 
             this._queue.push(audioBuffer);

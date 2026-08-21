@@ -14,29 +14,29 @@ My Translator is a **Tauri 2 desktop application** combining a **Rust backend** 
 │                          │                                      │
 │ ┌──────────────────────┐ │ ┌────────────────────────────────┐  │
 │ │ Audio Capture        │ │ │ App.js (Main Controller)      │  │
-│ │ ├─ ScreenCaptureKit  │ │ │ ├─ UI wiring                 │  │
-│ │ │  (macOS)           │◄├─┤ ├─ Settings management        │  │
-│ │ ├─ WASAPI (Windows)  │ │ │ ├─ Keyboard shortcuts        │  │
-│ │ └─ CPAL (Microphone) │ │ │ ├─ State management           │  │
+│ │ ├─ WASAPI (Windows)  │◄├─┤ ├─ UI wiring                 │  │
+│ │ └─ CPAL (Microphone) │ │ │ ├─ Settings management        │  │
+│ └──────────────────────┘ │ │ ├─ Keyboard shortcuts        │  │
+│         │                │ │ ├─ State management           │  │
+│ ┌──────▼──────────────┐ │ └────────────────────────────────┘  │
+│ │ Commands (Tauri     │ │           │                          │
+│ │ IPC Handlers)       │◄├─┤ ┌────────▼────────────────────────┐ │
+│ │ ├─ audio.rs         │ │ │ SonioxClient (WebSocket)        │ │
+│ │ ├─ settings.rs      │ │ │ ├─ STT + Translation            │ │
+│ │ ├─ transcript.rs    │ │ │ ├─ Auto-reconnect              │ │
+│ │ └─ edge_tts.rs      │ │ │ ├─ Session reset               │ │
+│ │                      │ │ │ └─ Context carryover           │ │
 │ └──────────────────────┘ │ └────────────────────────────────┘  │
-│         │                │           │                          │
-│ ┌──────▼──────────────┐ │ ┌────────▼────────────────────────┐ │
-│ │ Commands (Tauri     │ │ │ SonioxClient (WebSocket)        │ │
-│ │ IPC Handlers)       │◄├─┤ ├─ STT + Translation            │ │
-│ │ ├─ audio.rs         │ │ │ ├─ Auto-reconnect              │ │
-│ │ ├─ settings.rs      │ │ │ ├─ Session reset               │ │
-│ │ ├─ transcript.rs    │ │ │ └─ Context carryover           │ │
-│ │ ├─ edge_tts.rs      │ │ └────────────────────────────────┘  │
-│ │ └─ local_pipeline   │ │           │                          │
-│ │                      │ │ ┌────────▼────────────────────────┐ │
-│ └──────────────────────┘ │ │ TranscriptUI (Rendering)       │ │
-│         ▲                │ │ ├─ Single/dual panel views     │ │
-│         │                │ │ ├─ Smart scroll               │ │
-│ ┌──────┴──────────────┐ │ │ └─ Font sizing                │ │
-│ │ Settings            │ │ └────────────────────────────────┘  │
-│ │ (Mutex<Settings>)   │ │           │                          │
-│ │ Persisted to disk   │ │ ┌────────▼────────────────────────┐ │
-│ └─────────────────────┘ │ │ TTS Providers (Pluggable)      │ │
+│         ▲                │           │                          │
+│         │                │ ┌────────▼────────────────────────┐ │
+│ ┌──────┴──────────────┐ │ │ TranscriptUI (Rendering)       │ │
+│ │ Settings            │ │ │ ├─ Single/dual panel views     │ │
+│ │ (Mutex<Settings>)   │ │ │ ├─ Smart scroll               │ │
+│ │ Persisted to disk   │ │ │ └─ Font sizing                │ │
+│ └─────────────────────┘ │ └────────────────────────────────┘  │
+│                          │           │                          │
+│                          │ ┌────────▼────────────────────────┐ │
+│                          │ │ TTS Providers (Pluggable)      │ │
 │                          │ │ ├─ EdgeTTSRust (free)          │ │
 │                          │ │ ├─ GoogleTTS (premium)         │ │
 │                          │ │ ├─ ElevenLabsTTS (premium)     │ │
@@ -73,49 +73,6 @@ My Translator is a **Tauri 2 desktop application** combining a **Rust backend** 
 ### 1. Audio Capture Pipeline
 
 Captures PCM audio from system or microphone, streams to frontend.
-
-#### macOS (ScreenCaptureKit + CPAL)
-
-```
-┌─────────────────────────────────────┐
-│ ScreenCaptureKit Stream             │
-│ (System audio output)               │
-│ macOS 13.0+, private API            │
-└──────────────┬──────────────────────┘
-               │
-        ┌──────▼───────┐
-        │ System Audio  │
-        │ Capture       │
-        │ (system_audio │
-        │ .rs)          │
-        └──────┬────────┘
-               │
-        ┌──────▼─────────────┐
-        │ PCM 16kHz Mono     │
-        │ (Raw samples)      │
-        └──────┬─────────────┘
-               │
-        ┌──────▼──────────────────┐
-        │ Microphone (CPAL)       │
-        │ Input device selection  │
-        └──────┬──────────────────┘
-               │
-        ┌──────▼──────────────────┐
-        │ Tauri Event             │
-        │ (audio-chunk)           │
-        │ ~100ms chunks           │
-        └──────┬──────────────────┘
-               │
-        ┌──────▼──────────────────┐
-        │ Frontend (app.js)       │
-        │ Receives audio chunks   │
-        └─────────────────────────┘
-```
-
-**Key modules**:
-- `audio/system_audio.rs` — macOS ScreenCaptureKit wrapper
-- `audio/microphone.rs` — CPAL microphone init and stream
-- `commands/audio.rs` — Tauri IPC interface
 
 #### Windows (WASAPI Loopback + CPAL)
 
@@ -206,50 +163,7 @@ Captures PCM audio from system or microphone, streams to frontend.
 - Custom context: Optional domain terms and hints
 - Session ID: Unique per capture session
 
-#### Local Path (Experimental: Apple Silicon Only)
-
-```
-┌──────────────────────────┐
-│ PCM 16kHz Audio Chunks   │
-└───────────┬──────────────┘
-            │
-     ┌──────▼──────────────────────┐
-     │ LocalPipelineState           │
-     │ (spawn Python sidecar)       │
-     │ local_pipeline.rs            │
-     └──────┬───────────────────────┘
-            │
-     ┌──────▼──────────────────┐
-     │ Python Sidecar Process  │
-     │ local_pipeline.py        │
-     │ ├─ Whisper ASR          │
-     │ ├─ Qwen2.5 LLM          │
-     │ └─ MLX runtime          │
-     └──────┬──────────────────┘
-            │
-     ┌──────▼────────────────────┐
-     │ JSON stdout:              │
-     │ {                          │
-     │   "original": "...",      │
-     │   "translation": "..."    │
-     │ }                          │
-     └──────┬────────────────────┘
-            │
-     ┌──────▼──────────────────┐
-     │ TranscriptUI.addSegment │
-     └─────────────────────────┘
-```
-
-**Requirements**:
-- Apple Silicon (M1+) only
-- MLX models downloaded (~10GB)
-- 8GB+ RAM, ~5% CPU overhead
-- Languages: JA/EN/ZH/KO → VI/EN
-
-**Setup**:
-- `setup_mlx.py` downloads models on first activation
-- `local_pipeline.py` spawned as subprocess
-- JSON stdin/stdout communication
+> The experimental Local Path (MLX/Whisper Apple Silicon offline STT) was removed along with macOS support. Soniox cloud STT is now the only path.
 
 ---
 
@@ -455,14 +369,8 @@ Settings are the single source of truth for app configuration.
 #### Storage Location
 
 ```
-macOS:
-~/Library/Application Support/com.personal.translator/settings.json
-
 Windows:
 %APPDATA%\com.personal.translator\settings.json
-
-Linux:
-~/.config/com.personal.translator/settings.json
 ```
 
 #### Settings Sync Flow
@@ -529,70 +437,6 @@ Linux:
 | **TTS (Edge)** | `edge_tts_voice`, `edge_tts_speed` |
 | **AI** | `ai_endpoint`, `ai_api_key`, `ai_model` |
 | **Custom Context** | `custom_context` (domain hints, translation terms) |
-
----
-
-### 6. Auto-Update Flow
-
-Tauri updater plugin manages version checking and installation.
-
-```
-┌──────────────────────────────┐
-│ App Startup (or manual check)│
-└──────────┬───────────────────┘
-           │
-    ┌──────▼──────────────────────────┐
-    │ updater.check()                  │
-    │ → Tauri updater plugin           │
-    └──────┬───────────────────────────┘
-           │
-    ┌──────▼──────────────────────────┐
-    │ Fetch from GitHub release       │
-    │ GET latest.json endpoint         │
-    │ https://github.com/.../latest.json│
-    └──────┬───────────────────────────┘
-           │
-    ┌──────┴─────────────────────────┐
-    │ No update available             │
-    │ ✓ User on latest version        │
-    └─────────────────────────────────┘
-           OR
-    ┌──────▼──────────────────────────┐
-    │ Update available                │
-    │ ├─ Version: v0.5.2              │
-    │ └─ Download URL + signature     │
-    └──────┬───────────────────────────┘
-           │
-    ┌──────▼──────────────────────────┐
-    │ Show notification to user       │
-    │ "New version available"         │
-    └──────┬───────────────────────────┘
-           │
-    ┌──────▼──────────────────────────┐
-    │ User accepts update             │
-    └──────┬───────────────────────────┘
-           │
-    ┌──────▼──────────────────────────┐
-    │ Download + verify signature     │
-    │ ├─ Integrity check              │
-    │ └─ Signature validation         │
-    └──────┬───────────────────────────┘
-           │
-    ┌──────▼──────────────────────────┐
-    │ Install on next restart         │
-    │ └─ Replace app binaries         │
-    └──────┬───────────────────────────┘
-           │
-    ┌──────▼──────────────────────────┐
-    │ Restart app                     │
-    │ ✓ New version running           │
-    └─────────────────────────────────┘
-```
-
-**Configuration**:
-- `tauri.conf.json` specifies public key and update endpoint
-- GitHub releases checked via `latest.json` endpoint
-- Signature verification ensures integrity
 
 ---
 

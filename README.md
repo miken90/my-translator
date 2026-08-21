@@ -5,15 +5,16 @@
 <p align="center">
   <img src="https://img.shields.io/github/v/release/phuc-nt/my-translator?color=green&label=release" alt="Latest Release">
   <img src="https://img.shields.io/badge/built_with-Tauri-orange?logo=tauri" alt="Built with Tauri">
-  <img src="https://img.shields.io/badge/macOS-Apple%20Silicon%20%7C%20Intel-black?logo=apple" alt="macOS">
   <img src="https://img.shields.io/badge/Windows-10%2F11-blue?logo=windows" alt="Windows">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
   <img src="https://img.shields.io/github/stars/phuc-nt/my-translator?style=flat&color=yellow" alt="Stars">
 </p>
 
-**My Translator** is a real-time speech translation desktop app built with Tauri. It captures audio directly from your system or microphone, transcribes it, and displays translations in a minimal overlay — with no intermediary server involved.
+**My Translator** is a real-time speech translation desktop app built with Tauri, for Windows. It captures audio directly from your system or microphone, transcribes it, and displays translations in a minimal overlay — with no intermediary server involved.
 
-> 📖 Installation guides: [macOS (EN)](docs/installation_guide.md) · [macOS (VI)](docs/installation_guide_vi.md) · [Windows (EN)](docs/installation_guide_win.md) · [Windows (VI)](docs/installation_guide_win_vi.md)
+> 📖 Installation guides: [Windows (EN)](docs/installation_guide_win.md) · [Windows (VI)](docs/installation_guide_win_vi.md)
+>
+> macOS support has been discontinued as of this version — see [archived macOS guides](docs/installation_guide.md) for legacy releases.
 
 ---
 
@@ -31,9 +32,7 @@ System Audio / Mic → 16kHz PCM → Soniox API (STT + Translation) → Overlay 
 | **Languages** | 70+ (source) → any target, one-way & two-way |
 | **Cost** | ~$0.12/hr (Soniox API) |
 | **TTS** | 3 providers (Edge free, Google, ElevenLabs) |
-| **Platform** | macOS (ARM + Intel) · Windows |
-| **Signed** | ✅ macOS signed & notarized |
-| **Auto-Update** | ✅ Built-in, check & install from Settings |
+| **Platform** | Windows 10/11 |
 
 ---
 
@@ -97,10 +96,6 @@ Pneumonia = Viêm phổi
 
 Add terms in Settings → Translation → Translation terms. Great for religious, medical, or technical content.
 
-### 🖥️ Local Mode (Apple Silicon only)
-
-Experimental offline mode using MLX + Whisper + Gemma — runs 100% on-device. JA/EN/ZH/KO → VI/EN.
-
 ---
 
 ## Privacy
@@ -117,7 +112,6 @@ Experimental offline mode using MLX + Whisper + Gemma — runs 100% on-device. J
 ## Tech Stack
 
 - **[Tauri 2](https://tauri.app/)** — Rust backend + WebView frontend
-- **[ScreenCaptureKit](https://developer.apple.com/documentation/screencapturekit)** — macOS system audio
 - **[WASAPI](https://learn.microsoft.com/en-us/windows/win32/coreaudio/wasapi)** — Windows system audio
 - **[cpal](https://github.com/RustAudio/cpal)** — Cross-platform microphone
 - **[Soniox](https://soniox.com)** — Real-time STT + translation
@@ -136,7 +130,7 @@ npm install
 npm run tauri build
 ```
 
-Requires: Rust (stable), Node.js 18+, macOS 13+ or Windows 10+.
+Requires: Rust (stable), Node.js 18+, Windows 10+.
 
 ---
 

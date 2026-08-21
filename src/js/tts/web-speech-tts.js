@@ -2,25 +2,24 @@
  * Web Speech TTS — Browser built-in SpeechSynthesis API
  * Completely local, free, no API key needed.
  * Uses system voices installed on macOS/Windows.
+ *
+ * Note: not currently wired into the app's TTS provider selection (no UI
+ * option, not imported by app.js) — kept for parity with the other 3
+ * providers per the base-class consolidation.
  */
 
-class WebSpeechTTS {
+import { BaseTTSProvider } from './base-tts-provider.js';
+
+class WebSpeechTTS extends BaseTTSProvider {
     constructor() {
+        super();
         this.voice = null;
         this.voiceName = null;
         this.rate = 1.2;
         this.pitch = 1.0;
         this.volume = 1.0;
         this.lang = 'vi-VN';
-        this.isConnected = false;
 
-        // Same callback interface as ElevenLabsTTS
-        this.onAudioChunk = null;   // Not used — Web Speech plays directly
-        this.onError = null;
-        this.onStatusChange = null;
-
-        this._queue = [];
-        this._isSpeaking = false;
         this._voicesLoaded = false;
     }
 
@@ -78,7 +77,7 @@ class WebSpeechTTS {
     }
 
     /**
-     * Speak text using SpeechSynthesis
+     * Speak text using SpeechSynthesis — plays directly, no chunk queue
      */
     speak(text) {
         if (!text?.trim()) return;
@@ -117,13 +116,7 @@ class WebSpeechTTS {
      */
     disconnect() {
         speechSynthesis.cancel();
-        this._isSpeaking = false;
-        this.isConnected = false;
-        this._setStatus('disconnected');
-    }
-
-    _setStatus(status) {
-        this.onStatusChange?.(status);
+        super.disconnect();
     }
 
     /**

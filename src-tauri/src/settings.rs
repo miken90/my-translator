@@ -1,17 +1,17 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 /// Translation term: source → target mapping for Soniox
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct TranslationTerm {
     pub source: String,
     pub target: String,
 }
 
 /// Custom context for Soniox — provides domain-specific hints
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct CustomContext {
     pub domain: Option<String>,
@@ -19,7 +19,7 @@ pub struct CustomContext {
 }
 
 /// App settings — persisted to JSON
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(default)]
 pub struct Settings {
     /// Soniox API key
@@ -38,7 +38,7 @@ pub struct Settings {
     pub max_lines: u32,
     /// Whether to show original text alongside translation
     pub show_original: bool,
-    /// Translation mode: "soniox" (cloud API) or "local" (MLX models)
+    /// Translation mode: "soniox" (cloud API)
     pub translation_mode: String,
     /// Optional custom context for better transcription
     pub custom_context: Option<CustomContext>,
@@ -104,7 +104,7 @@ impl Default for Settings {
 }
 
 /// Get the settings file path
-/// ~/Library/Application Support/com.personal.translator/settings.json
+/// %APPDATA%/com.personal.translator/settings.json
 fn settings_path() -> PathBuf {
     let mut path = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
     path.push("com.personal.translator");
@@ -118,11 +118,38 @@ impl Settings {
         let path = settings_path();
         if path.exists() {
             match fs::read_to_string(&path) {
-                Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
+                Ok(content) => Self::parse_or_backup(&path, &content),
                 Err(_) => Self::default(),
             }
         } else {
             Self::default()
+        }
+    }
+
+    /// Parse settings JSON content. On corrupt content, back up the original
+    /// bytes to `<path>.bak`, log, and fall back to defaults — a corrupt
+    /// settings.json is never silently discarded.
+    fn parse_or_backup(path: &Path, content: &str) -> Self {
+        match serde_json::from_str(content) {
+            Ok(settings) => settings,
+            Err(e) => {
+                eprintln!(
+                    "[Settings] Corrupt settings.json ({}), backing up and using defaults",
+                    e
+                );
+                let backup_path = path.with_extension("json.bak");
+                match fs::write(&backup_path, content) {
+                    Ok(()) => eprintln!(
+                        "[Settings] Backed up corrupt settings.json to {:?}",
+                        backup_path
+                    ),
+                    Err(write_err) => eprintln!(
+                        "[Settings] Failed to write corrupt-settings backup to {:?}: {}",
+                        backup_path, write_err
+                    ),
+                }
+                Self::default()
+            }
         }
     }
 
@@ -146,3 +173,107 @@ impl Settings {
 
 /// Thread-safe settings state managed by Tauri
 pub struct SettingsState(pub Mutex<Settings>);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_settings_have_expected_baseline_values() {
+        let s = Settings::default();
+        assert_eq!(s.source_language, "auto");
+        assert_eq!(s.target_language, "vi");
+        assert_eq!(s.audio_source, "system");
+        assert_eq!(s.translation_mode, "soniox");
+        assert_eq!(s.tts_provider, "edge");
+        assert!(s.tts_auto_read);
+        assert!(!s.tts_enabled);
+        assert!(s.custom_context.is_none());
+    }
+
+    #[test]
+    fn settings_survive_a_serde_json_round_trip() {
+        let original = Settings::default();
+        let json = serde_json::to_string_pretty(&original).expect("serialize");
+        let restored: Settings = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(original, restored);
+    }
+
+    #[test]
+    fn missing_fields_in_stored_json_fall_back_to_defaults() {
+        // #[serde(default)] means a partial settings.json (e.g. from an older
+        // version) still deserializes, filling in only the missing fields.
+        let partial = r#"{"soniox_api_key": "sk-abc", "font_size": 22}"#;
+        let restored: Settings = serde_json::from_str(partial).expect("deserialize partial");
+        assert_eq!(restored.soniox_api_key, "sk-abc");
+        assert_eq!(restored.font_size, 22);
+        // Everything else falls back to Default::default() field values.
+        assert_eq!(restored.target_language, Settings::default().target_language);
+    }
+
+    #[test]
+    fn corrupt_json_falls_back_to_default_settings() {
+        // Characterizes the underlying serde fallback pattern
+        // (serde_json::from_str(...).unwrap_or_default()) that
+        // Settings::parse_or_backup() builds on.
+        let corrupt = "{ this is not valid json ";
+        let restored: Settings = serde_json::from_str(corrupt).unwrap_or_default();
+        assert_eq!(restored, Settings::default());
+    }
+
+    #[test]
+    fn corrupt_settings_are_backed_up_before_falling_back_to_defaults() {
+        // Uses a temp dir (not the real settings_path()) so the test never
+        // touches an actual user's settings.json.
+        let dir = std::env::temp_dir().join("my-translator-test-corrupt-settings-backup");
+        let _ = fs::create_dir_all(&dir);
+        let settings_path = dir.join("settings.json");
+        let backup_path = dir.join("settings.json.bak");
+        let _ = fs::remove_file(&backup_path); // clean slate from any previous run
+
+        let corrupt = "{ not valid json ";
+        let restored = Settings::parse_or_backup(&settings_path, corrupt);
+
+        assert_eq!(restored, Settings::default());
+        let backup_content = fs::read_to_string(&backup_path).expect("backup file should exist");
+        assert_eq!(backup_content, corrupt);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn valid_settings_json_does_not_create_a_backup_file() {
+        let dir = std::env::temp_dir().join("my-translator-test-valid-settings-no-backup");
+        let _ = fs::create_dir_all(&dir);
+        let settings_path = dir.join("settings.json");
+        let backup_path = dir.join("settings.json.bak");
+        let _ = fs::remove_file(&backup_path);
+
+        let valid = serde_json::to_string(&Settings::default()).expect("serialize");
+        let restored = Settings::parse_or_backup(&settings_path, &valid);
+
+        assert_eq!(restored, Settings::default());
+        assert!(!backup_path.exists());
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn custom_context_round_trips_with_translation_terms() {
+        let ctx = CustomContext {
+            domain: Some("medical".to_string()),
+            translation_terms: vec![TranslationTerm {
+                source: "sin".to_string(),
+                target: "tội".to_string(),
+            }],
+        };
+        let settings = Settings {
+            custom_context: Some(ctx.clone()),
+            ..Settings::default()
+        };
+
+        let json = serde_json::to_string(&settings).expect("serialize");
+        let restored: Settings = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(restored.custom_context, Some(ctx));
+    }
+}

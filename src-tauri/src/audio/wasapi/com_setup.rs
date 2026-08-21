@@ -1,65 +1,9 @@
 use std::sync::mpsc;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 
-use super::TARGET_SAMPLE_RATE;
-
-/// System audio capture using WASAPI loopback on Windows.
-/// Captures all system audio output and converts to PCM s16le 16kHz mono.
-/// On Windows 10 20H2+, uses Application Loopback API (ALAC) to exclude own process audio.
-/// Falls back to legacy WASAPI loopback on older systems.
-pub struct SystemAudioCapture {
-    is_capturing: Arc<AtomicBool>,
-}
-
-impl SystemAudioCapture {
-    pub fn new() -> Self {
-        Self {
-            is_capturing: Arc::new(AtomicBool::new(false)),
-        }
-    }
-
-    /// Start capturing system audio.
-    /// Returns a receiver that yields PCM s16le 16kHz mono audio chunks.
-    pub fn start(&self) -> Result<mpsc::Receiver<Vec<u8>>, String> {
-        if self.is_capturing.load(Ordering::SeqCst) {
-            return Err("Already capturing".to_string());
-        }
-
-        let (sender, receiver) = mpsc::channel::<Vec<u8>>();
-        let is_capturing = self.is_capturing.clone();
-        is_capturing.store(true, Ordering::SeqCst);
-
-        let own_pid = std::process::id();
-
-        std::thread::spawn(move || {
-            // Skip ALAC — go straight to legacy loopback for stability
-            start_legacy_loopback(sender, is_capturing);
-        });
-
-        Ok(receiver)
-    }
-
-    /// Stop capturing
-    pub fn stop(&self) {
-        self.is_capturing.store(false, Ordering::SeqCst);
-    }
-
-    pub fn is_capturing(&self) -> bool {
-        self.is_capturing.load(Ordering::SeqCst)
-    }
-}
-
-impl Default for SystemAudioCapture {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Windows API imports
-// ─────────────────────────────────────────────────────────────────────────────
+use super::capture_loop::run_capture_loop;
 
 use windows::Win32::Media::Audio::{
     ActivateAudioInterfaceAsync,
@@ -67,13 +11,11 @@ use windows::Win32::Media::Audio::{
     AUDIOCLIENT_ACTIVATION_PARAMS_0,
     AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK,
     AUDIOCLIENT_PROCESS_LOOPBACK_PARAMS,
-    AUDCLNT_BUFFERFLAGS_SILENT,
     AUDCLNT_SHAREMODE_SHARED,
     AUDCLNT_STREAMFLAGS_LOOPBACK,
     IActivateAudioInterfaceAsyncOperation,
     IActivateAudioInterfaceCompletionHandler,
     IActivateAudioInterfaceCompletionHandler_Impl,
-    IAudioCaptureClient,
     IAudioClient,
     IMMDeviceEnumerator,
     MMDeviceEnumerator,
@@ -165,84 +107,10 @@ unsafe fn build_activation_propvariant(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared capture loop (reused by both ALAC and legacy paths)
-// ─────────────────────────────────────────────────────────────────────────────
-
-unsafe fn run_capture_loop(
-    audio_client: &IAudioClient,
-    sender: &mpsc::Sender<Vec<u8>>,
-    is_capturing: &Arc<AtomicBool>,
-    source_rate: u32,
-    source_channels: u32,
-    bits_per_sample: u16,
-) {
-    let capture_client: IAudioCaptureClient = match audio_client.GetService() {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("[wasapi] Failed to get capture client: {}", e);
-            return;
-        }
-    };
-
-    if let Err(e) = audio_client.Start() {
-        eprintln!("[wasapi] Failed to start audio client: {}", e);
-        return;
-    }
-
-    while is_capturing.load(Ordering::SeqCst) {
-        std::thread::sleep(Duration::from_millis(10));
-
-        let packet_size = match capture_client.GetNextPacketSize() {
-            Ok(size) => size,
-            Err(_) => continue,
-        };
-
-        if packet_size == 0 {
-            continue;
-        }
-
-        let mut buffer_ptr = std::ptr::null_mut();
-        let mut num_frames = 0u32;
-        let mut flags = 0u32;
-
-        if capture_client
-            .GetBuffer(&mut buffer_ptr, &mut num_frames, &mut flags, None, None)
-            .is_err()
-        {
-            continue;
-        }
-
-        if num_frames > 0 && !buffer_ptr.is_null() {
-            let is_silent = (flags & (AUDCLNT_BUFFERFLAGS_SILENT.0 as u32)) != 0;
-
-            if !is_silent {
-                let pcm_data = convert_to_pcm_s16_16k(
-                    buffer_ptr,
-                    num_frames,
-                    source_rate,
-                    source_channels,
-                    bits_per_sample,
-                );
-
-                if !pcm_data.is_empty() {
-                    if sender.send(pcm_data).is_err() {
-                        break; // Receiver dropped
-                    }
-                }
-            }
-        }
-
-        let _ = capture_client.ReleaseBuffer(num_frames);
-    }
-
-    let _ = audio_client.Stop();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // ALAC path: Windows 10 20H2+ — excludes own PID from captured audio
 // ─────────────────────────────────────────────────────────────────────────────
 
-fn start_app_loopback(
+pub(super) fn start_app_loopback(
     own_pid: u32,
     sender: mpsc::Sender<Vec<u8>>,
     is_capturing: Arc<AtomicBool>,
@@ -334,7 +202,7 @@ fn start_app_loopback(
 // Legacy WASAPI loopback path (captures all system audio, no exclusion)
 // ─────────────────────────────────────────────────────────────────────────────
 
-fn start_legacy_loopback(sender: mpsc::Sender<Vec<u8>>, is_capturing: Arc<AtomicBool>) {
+pub(super) fn start_legacy_loopback(sender: mpsc::Sender<Vec<u8>>, is_capturing: Arc<AtomicBool>) {
     unsafe {
         let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
 
@@ -407,51 +275,4 @@ fn start_legacy_loopback(sender: mpsc::Sender<Vec<u8>>, is_capturing: Arc<Atomic
 
         CoUninitialize();
     }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PCM conversion helper
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Convert raw WASAPI buffer to PCM s16le 16kHz mono
-unsafe fn convert_to_pcm_s16_16k(
-    buffer_ptr: *mut u8,
-    num_frames: u32,
-    source_rate: u32,
-    source_channels: u32,
-    bits_per_sample: u16,
-) -> Vec<u8> {
-    let frame_count = num_frames as usize;
-
-    // Read samples as f32 (WASAPI typically delivers IEEE float)
-    let f32_samples = if bits_per_sample == 32 {
-        let ptr = buffer_ptr as *const f32;
-        std::slice::from_raw_parts(ptr, frame_count * source_channels as usize)
-    } else {
-        return Vec::new(); // Unsupported format
-    };
-
-    // Take first channel only (mono)
-    let mono: Vec<f32> = f32_samples
-        .chunks(source_channels as usize)
-        .map(|frame| frame[0])
-        .collect();
-
-    // Downsample to 16kHz
-    let ratio = source_rate as f64 / TARGET_SAMPLE_RATE as f64;
-    let output_len = (mono.len() as f64 / ratio) as usize;
-
-    let mut pcm_bytes: Vec<u8> = Vec::with_capacity(output_len * 2);
-
-    for i in 0..output_len {
-        let src_idx = (i as f64 * ratio) as usize;
-        if src_idx >= mono.len() {
-            break;
-        }
-        let sample = mono[src_idx].clamp(-1.0, 1.0);
-        let s16 = (sample * 32767.0) as i16;
-        pcm_bytes.extend_from_slice(&s16.to_le_bytes());
-    }
-
-    pcm_bytes
 }

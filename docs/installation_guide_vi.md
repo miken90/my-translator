@@ -1,4 +1,6 @@
-# Hướng Dẫn Cài Đặt My Translator
+# Hướng Dẫn Cài Đặt My Translator (Lưu trữ — macOS)
+
+> ⚠️ **Đã lưu trữ.** macOS không còn được hỗ trợ; hướng dẫn này chỉ áp dụng cho các bản phát hành macOS cũ. Với bản build hiện tại, xem [hướng dẫn cài đặt Windows](installation_guide_win_vi.md).
 
 Hướng dẫn từng bước cài đặt và sử dụng **My Translator** trên macOS.
 

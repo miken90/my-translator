@@ -3,24 +3,19 @@
  * Uses Flash v2.5 model for ultra-low-latency text-to-speech
  */
 
-class ElevenLabsTTS {
+import { BaseTTSProvider } from './base-tts-provider.js';
+
+class ElevenLabsTTS extends BaseTTSProvider {
     constructor() {
+        super();
         this.ws = null;
         this.apiKey = null;
         this.voiceId = null;
         this.modelId = 'eleven_flash_v2_5';
         this.outputFormat = 'mp3_44100_128';
-        this.isConnected = false;
-
-        // Callbacks
-        this.onAudioChunk = null;   // (base64Audio, isFinal) => void
-        this.onError = null;        // (errorMsg) => void
-        this.onStatusChange = null; // (status) => void  — 'connecting'|'connected'|'disconnected'|'error'
 
         // Queue text while WS is connecting
         this._textQueue = [];
-        this._reconnectAttempts = 0;
-        this._maxReconnectAttempts = 3;
         this._intentionalClose = false;
 
         // Instrumentation
@@ -63,7 +58,7 @@ class ElevenLabsTTS {
         this.ws.onopen = () => {
             console.log('[ElevenLabs] WebSocket connected');
             this.isConnected = true;
-            this._reconnectAttempts = 0;
+            this._resetReconnect();
 
             // Send BOS (Beginning of Stream) message with config
             this.ws.send(JSON.stringify({
@@ -130,15 +125,7 @@ class ElevenLabsTTS {
             }
 
             // Auto-reconnect on unexpected close
-            if (this._reconnectAttempts < this._maxReconnectAttempts) {
-                this._reconnectAttempts++;
-                const delay = this._reconnectAttempts * 2000;
-                console.log(`[ElevenLabs] Reconnecting in ${delay}ms (attempt ${this._reconnectAttempts}/${this._maxReconnectAttempts})`);
-                setTimeout(() => this.connect(), delay);
-            } else {
-                this._setStatus('disconnected');
-                this.onError?.('TTS disconnected after max retries');
-            }
+            this._scheduleReconnect(() => this.connect());
         };
     }
 
@@ -215,13 +202,7 @@ class ElevenLabsTTS {
             this.ws = null;
         }
 
-        this.isConnected = false;
-        this._reconnectAttempts = 0;
-        this._setStatus('disconnected');
-    }
-
-    _setStatus(status) {
-        this.onStatusChange?.(status);
+        super.disconnect();
     }
 }
 

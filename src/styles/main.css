@@ -1346,7 +1346,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
   }
 }
 
-/* ─── Setup Modal ───────────────────────────────────────── */
+/* ─── Modal Dialog (crash recovery) ─────────────────────── */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1360,7 +1360,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: modalFadeIn 0.3s ease;
 }
 
 .modal-card {
@@ -1394,13 +1393,13 @@ input[type="range"]::-webkit-slider-thumb:hover {
   color: var(--text-secondary);
   font-size: 0.85em;
   line-height: 1.5;
-  margin-bottom: 20px;
 }
 
 .modal-footer {
   padding: 12px 24px 20px;
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 .secondary-btn {
@@ -1417,141 +1416,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .secondary-btn:hover {
   background: var(--bg-active);
   color: var(--text-primary);
-}
-
-/* Progress bar */
-.progress-container {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.progress-bar {
-  flex: 1;
-  height: 6px;
-  background: var(--bg-input);
-  border-radius: 3px;
-  overflow: hidden;
-  position: relative;
-}
-
-.progress-fill {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, var(--accent), #a78bfa);
-  border-radius: 3px;
-  transition: width 0.5s ease;
-  position: relative;
-}
-
-.progress-fill::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-  animation: progressShine 2s infinite;
-}
-
-.progress-pct {
-  color: var(--text-secondary);
-  font-size: 0.8em;
-  font-variant-numeric: tabular-nums;
-  min-width: 36px;
-  text-align: right;
-}
-
-/* Step indicators */
-.setup-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.setup-step {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
-}
-
-.setup-step.active {
-  background: var(--accent-glow);
-}
-
-.setup-step.done {
-  opacity: 0.6;
-}
-
-.step-icon {
-  font-size: 0.9em;
-  width: 20px;
-  text-align: center;
-}
-
-.step-text {
-  color: var(--text-secondary);
-  font-size: 0.85em;
-}
-
-.setup-step.active .step-text {
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-/* Status text */
-.setup-status {
-  padding: 8px 12px;
-  background: var(--bg-input);
-  border-radius: var(--radius-sm);
-  min-height: 36px;
-  display: flex;
-  align-items: center;
-}
-
-#setup-status-text {
-  color: var(--text-muted);
-  font-size: 0.8em;
-  font-family: 'SF Mono', 'Cascadia Code', monospace;
-  word-break: break-all;
-}
-
-@keyframes modalFadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes progressShine {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(200%); }
-}
-
-/* ─── Settings Badge (notification dot) ───────────────── */
-#btn-settings {
-  position: relative;
-}
-
-.settings-badge {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 8px;
-  height: 8px;
-  background: var(--error);
-  border-radius: 50%;
-  box-shadow: 0 0 6px var(--error);
-  animation: badgePulse 2s ease-in-out infinite;
-}
-
-@keyframes badgePulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(1.2); }
 }
 
 /* ─── About Tab ───────────────────────────────────────── */
@@ -1593,94 +1457,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .about-links a:hover {
   color: var(--accent-hover);
   text-decoration: underline;
-}
-
-/* ─── Update Section ──────────────────────────────────── */
-.update-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--bg-input);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.check-update-btn {
-  margin-left: auto;
-  background: none;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  padding: 4px 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  transition: all var(--transition-fast);
-}
-
-.check-update-btn:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.check-update-btn.spinning svg {
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.update-status.has-update {
-  background: rgba(74, 222, 128, 0.08);
-  border: 1px solid rgba(74, 222, 128, 0.2);
-  color: var(--success);
-}
-
-.update-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  padding: 6px 14px;
-}
-
-.update-progress {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-/* ─── Update message (main screen) ────────────────────── */
-.update-hint {
-  position: fixed;
-  bottom: 48px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11px;
-  color: var(--text-muted);
-  background: var(--bg-input);
-  padding: 4px 12px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  z-index: 50;
-  opacity: 0;
-  animation: fadeInUp 0.3s ease forwards;
-}
-
-.update-hint:hover {
-  color: var(--accent);
-  background: var(--accent-glow);
-}
-
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
-  to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1950,4 +1726,94 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .session-copy-btn:disabled:hover {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);
+}
+
+/* Export format select (overlay toolbar + session viewer) */
+.export-format-select {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+/* Transcript Q&A section in session viewer */
+.session-qa-section {
+  border-top: 1px solid var(--border-light);
+  padding: 12px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+}
+
+.session-qa-header {
+  margin-bottom: 2px;
+}
+
+.session-qa-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim, rgba(255, 255, 255, 0.5));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.qa-messages {
+  overflow-y: auto;
+  max-height: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.qa-message {
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  white-space: pre-wrap;
+}
+
+.qa-message-user {
+  background: var(--accent-glow);
+  color: var(--text-primary);
+  align-self: flex-end;
+  max-width: 85%;
+}
+
+.qa-message-assistant {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  align-self: flex-start;
+  max-width: 85%;
+}
+
+.qa-message-system {
+  background: transparent;
+  color: var(--text-dim, rgba(255, 255, 255, 0.5));
+  font-style: italic;
+}
+
+.qa-input-row {
+  display: flex;
+  gap: 6px;
+}
+
+.qa-input-row input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.qa-input-row input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }

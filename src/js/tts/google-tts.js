@@ -4,7 +4,10 @@
  * Returns base64 audio, played via audioPlayer.
  */
 
+import { BaseTTSProvider } from './base-tts-provider.js';
+
 const GOOGLE_TTS_ENDPOINT = 'https://texttospeech.googleapis.com/v1/text:synthesize';
+const REQUEST_TIMEOUT_MS = 10000;
 
 // Voice map: target language → default Chirp 3 HD voice
 const VOICE_MAP = {
@@ -18,20 +21,13 @@ const VOICE_MAP = {
     'es': { code: 'es-ES', name: 'es-ES-Chirp3-HD-Aoede' },
 };
 
-class GoogleTTS {
+class GoogleTTS extends BaseTTSProvider {
     constructor() {
+        super();
         this.apiKey = '';
         this.voice = 'vi-VN-Chirp3-HD-Aoede';
         this.languageCode = 'vi-VN';
         this.speakingRate = 1.0;
-        this.isConnected = false;
-        this._queue = [];
-        this._isSpeaking = false;
-
-        // Same callback interface as other TTS providers
-        this.onAudioChunk = null;
-        this.onError = null;
-        this.onStatusChange = null;
     }
 
     configure({ apiKey, voice, languageCode, speakingRate }) {
@@ -62,26 +58,11 @@ class GoogleTTS {
         console.log('[Google TTS] Ready (Chirp 3 HD)');
     }
 
-    speak(text) {
-        if (!text?.trim()) return;
-        this._queue.push(text.trim());
-        if (!this._isSpeaking) {
-            this._processQueue();
-        }
-    }
-
-    async _processQueue() {
-        if (this._queue.length === 0) {
-            this._isSpeaking = false;
-            return;
-        }
-
-        this._isSpeaking = true;
-        const text = this._queue.shift();
+    async _synthesize(text) {
         const startTime = performance.now();
 
         try {
-            const response = await fetch(`${GOOGLE_TTS_ENDPOINT}?key=${this.apiKey}`, {
+            const response = await this._fetchWithTimeout(`${GOOGLE_TTS_ENDPOINT}?key=${this.apiKey}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -95,7 +76,7 @@ class GoogleTTS {
                         speakingRate: this.speakingRate,
                     },
                 }),
-            });
+            }, REQUEST_TIMEOUT_MS);
 
             if (!response.ok) {
                 const err = await response.json().catch(() => ({}));
@@ -112,25 +93,12 @@ class GoogleTTS {
             }
         } catch (err) {
             console.error('[Google TTS] Error:', err);
-            let msg = err.message;
+            let msg = err.name === 'AbortError' ? 'request timed out' : err.message;
             if (msg.includes('blocked')) {
                 msg = 'API blocked — enable "Cloud Text-to-Speech API" in Google Cloud Console';
             }
             this.onError?.(`Google TTS: ${msg}`);
         }
-
-        this._processQueue();
-    }
-
-    disconnect() {
-        this._queue = [];
-        this._isSpeaking = false;
-        this.isConnected = false;
-        this._setStatus('disconnected');
-    }
-
-    _setStatus(status) {
-        this.onStatusChange?.(status);
     }
 }
 

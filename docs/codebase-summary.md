@@ -2,19 +2,7 @@
 
 ## Overview
 
-My Translator (~10,000 LOC) is structured as a **Tauri 2 desktop app** with a **Rust backend** (audio capture, IPC) and **ES module frontend** (WebView UI, Soniox client). No build bundler or framework used; frontend is vanilla JS + CSS.
-
-### Size Breakdown
-
-| Component | Language | LOC | Files |
-|-----------|----------|-----|-------|
-| Frontend (UI + Soniox client) | JavaScript | ~4,600 | 12 |
-| HTML (template) | HTML | 776 | 1 |
-| CSS (styling) | CSS | 1,921 | 1 |
-| Rust backend | Rust | ~1,956 | 12 |
-| Python (local STT sidecar) | Python | 709 | 2 |
-| Config/Meta | JSON/TOML | ~150 | 4 |
-| **Total** | | **~10,112** | **32** |
+My Translator (Windows-only) is structured as a **Tauri 2 desktop app** with a **Rust backend** (audio capture, IPC) and **ES module frontend** (WebView UI, Soniox client). No build bundler or framework used; frontend is vanilla JS + CSS. macOS support and the experimental Local Mode (MLX/Whisper Python sidecar) were removed in the meeting-focus refactor (see `plans/`).
 
 ## Directory Structure
 
@@ -32,38 +20,33 @@ my-translator/
 │       ├── audio-player.js          (158 LOC)  Web Audio API playback
 │       ├── settings.js              (90 LOC)   Settings IPC proxy
 │       ├── google-tts.js            (138 LOC)  Google Cloud TTS REST
-│       ├── web-speech-tts.js        (145 LOC)  Browser SpeechSynthesis
+│       ├── web-speech-tts.js        (145 LOC)  Browser SpeechSynthesis (unused, not wired to app.js)
 │       ├── edge-tts.js              (86 LOC)   Edge TTS Rust proxy
-│       ├── updater.js               (134 LOC)  Auto-updater Tauri plugin
 │       └── [other utilities]        (~100 LOC) Minor helpers
 │
 ├── src-tauri/                        # Rust backend (Tauri 2)
 │   ├── src/
-│   │   ├── lib.rs                   (65 LOC)   Tauri builder & command router
-│   │   ├── main.rs                  (6 LOC)    Entry point
-│   │   ├── settings.rs              (139 LOC)  Settings struct + persistence
+│   │   ├── lib.rs                   Tauri builder & command router
+│   │   ├── main.rs                  Entry point
+│   │   ├── settings.rs              Settings struct + persistence
 │   │   │
 │   │   ├── audio/
-│   │   │   ├── mod.rs               (18 LOC)   Module exports
-│   │   │   ├── system_audio.rs      (158 LOC)  macOS ScreenCaptureKit
+│   │   │   ├── mod.rs               Module exports
 │   │   │   ├── wasapi.rs            (469 LOC)  Windows WASAPI loopback
 │   │   │   └── microphone.rs        (278 LOC)  Cross-platform mic (CPAL)
 │   │   │
 │   │   └── commands/
-│   │       ├── mod.rs               (5 LOC)    Command module exports
+│   │       ├── mod.rs               Command module exports
 │   │       ├── audio.rs             (166 LOC)  start/stop audio capture
 │   │       ├── edge_tts.rs          (175 LOC)  Edge TTS WebSocket proxy
-│   │       ├── local_pipeline.rs    (321 LOC)  Python MLX sidecar mgmt
 │   │       ├── settings.rs          (32 LOC)   get/save settings IPC
 │   │       └── transcript.rs        (124 LOC)  save/list/read transcripts
 │   │
-│   ├── Cargo.toml                   Rust dependencies
-│   ├── tauri.conf.json              App config (UI size, plugins)
-│   └── Entitlements.plist           macOS signing
+│   ├── Cargo.toml                   Rust dependencies (Windows-only)
+│   └── tauri.conf.json              App config (UI size, plugins)
 
 ├── scripts/
-│   ├── local_pipeline.py            (457 LOC)  Whisper + Qwen2.5 pipeline
-│   └── setup_mlx.py                 (252 LOC)  MLX model download/setup
+│   └── build-release.sh             Portable release build helper
 │
 ├── .github/workflows/
 │   └── release.yml                  (269 LOC)  CI/CD: build + notarize
@@ -77,7 +60,8 @@ my-translator/
     ├── project-roadmap.md           (NEW) Milestones & future plans
     ├── deployment-guide.md          (NEW) Build & release process
     ├── future-plans.md              (existing) Detailed feature roadmap
-    ├── installation_guide.md        (existing) macOS installation
+    ├── installation_guide.md        (archived) legacy macOS installation
+    ├── installation_guide_win.md    (existing) Windows installation
     └── [other user guides & images]
 ```
 
@@ -85,15 +69,15 @@ my-translator/
 
 ### Frontend Modules (`src/js/`)
 
-#### **app.js** (1783 LOC) — Main Application Controller
-Wires all subsystems: settings, UI, Soniox, audio capture, TTS providers, auto-updater, keyboard shortcuts.
+#### **app.js** — Main Application Controller
+Wires all subsystems: settings, UI, Soniox, audio capture, TTS providers, keyboard shortcuts.
 
 **Key classes/exports**:
 - `App` — Main app class with lifecycle management
-- Manages: `isRunning`, `currentSource`, `translationMode`, `sessionStartTime`
+- Manages: `isRunning`, `currentSource`, `sessionStartTime`
 - Exposes: `app.start()`, `app.stop()`, `app.updateSettings()`
 
-**Dependencies**: Tauri IPC, TranscriptUI, SonioxClient, all TTS providers, audioPlayer, updater, settingsManager
+**Dependencies**: Tauri IPC, TranscriptUI, SonioxClient, all TTS providers, audioPlayer, settingsManager
 
 #### **ui.js** (556 LOC) — TranscriptUI Rendering
 Renders transcript segments into DOM. Handles unified card layout with original + translation stacked, smart scrolling, font sizing. Uses **monotonic segment IDs** (`_nextSegId`) for reliable sessionLog matching. Translation matching uses **LIFO** (most recent pending original) instead of FIFO. 2-tier stale cleanup: mark at 10s, remove at 60s; stale cards rendered with strike-through.
@@ -151,14 +135,6 @@ Queue-based audio playback using Web Audio API.
 - Methods: `enqueue(base64Mp3)`, `play()`, `stop()`, `clear()`
 - Handles: Queue management, playback events
 
-#### **updater.js** (134 LOC) — Auto-Updater Integration
-Tauri auto-updater plugin wrapper with fallback.
-
-**Key export**:
-- `updater` — Singleton updater
-- Methods: `check()` → Promise<{available, version}>
-- Calls Tauri updater plugin; falls back to invoke for older versions
-
 #### **web-speech-tts.js** (145 LOC) — Browser SpeechSynthesis
 Browser native SpeechSynthesis API (not actively used in UI; kept for reference).
 
@@ -166,13 +142,12 @@ Browser native SpeechSynthesis API (not actively used in UI; kept for reference)
 
 ### Backend Modules (`src-tauri/src/`)
 
-#### **lib.rs** (65 LOC) — Tauri Application Entry Point
+#### **lib.rs** — Tauri Application Entry Point
 Builds Tauri app with all plugins and command handlers.
 
 **Managed state**:
 - `SettingsState(Mutex<Settings>)` — Thread-safe settings
 - `AudioState` — Audio capture state (system + microphone)
-- `LocalPipelineState` — Python sidecar process state
 
 **Exposed commands**: All IPC entry points to frontend
 
@@ -182,18 +157,10 @@ Defines `Settings` struct (all app configuration). Implements load/save to OS co
 **Key struct**:
 - `Settings` — 25+ fields (API keys, audio settings, TTS config, UI prefs)
 - Default values: Soniox mode, system audio, 16px font, Edge TTS enabled
-- Persists to: `~/Library/Application Support/com.personal.translator/settings.json` (macOS) or Windows equivalent
+- Persists to: `%APPDATA%/com.personal.translator/settings.json`
 
-#### **audio/mod.rs** (18 LOC)
+#### **audio/mod.rs**
 Module exports for audio submodules.
-
-#### **audio/system_audio.rs** (158 LOC) — macOS ScreenCaptureKit
-macOS system audio capture using Apple ScreenCaptureKit.
-
-**Key type**:
-- `SystemAudioCapture` — macOS-specific capture manager
-- Captures speaker output to PCM 16kHz mono
-- Sends via Tauri event to frontend
 
 #### **audio/wasapi.rs** (469 LOC) — Windows WASAPI Loopback
 Windows system audio capture using WASAPI loopback device.
@@ -238,16 +205,6 @@ Rust-side WebSocket proxy for Edge TTS to bypass browser CORS limitations.
 - `edge_tts_speak(text, voice, speed) -> Result<base64 MP3>`
 - Connects to Edge TTS, encodes audio, returns base64
 
-#### **commands/local_pipeline.rs** (321 LOC) — Python Sidecar Management
-Manages local MLX + Whisper + Qwen2.5 Python process for offline STT.
-
-**Exposed commands**:
-- `start_local_pipeline() -> Result<()>` — Spawns Python sidecar
-- `send_audio_to_pipeline(pcm_buffer) -> Result<String>` — Sends audio, receives JSON response
-- `stop_local_pipeline() -> Result<()>` — Terminates sidecar
-- `check_mlx_setup() -> Result<bool>` — Checks if models are installed
-- `run_mlx_setup() -> Result<()>` — Downloads MLX models
-
 #### **commands/transcript.rs** (124 LOC) — Transcript File Management
 Commands for saving/reading session transcripts.
 
@@ -259,27 +216,11 @@ Commands for saving/reading session transcripts.
 
 ---
 
-### Python Modules (`scripts/`)
-
-#### **local_pipeline.py** (457 LOC) — Offline ASR + Translation
-Whisper ASR + Qwen2.5 LLM pipeline for local (on-device) translation.
-
-**Input**: JSON stdin with audio config, PCM data
-**Output**: JSON stdout with `{original, translation}` segments
-**Requirements**: MLX, Whisper, Qwen2.5 models (Apple Silicon only)
-
-#### **setup_mlx.py** (252 LOC) — Model Setup
-Downloads and caches MLX + Whisper + Qwen2.5 models.
-
-**Purpose**: Called once during first local mode activation; manages model download and caching.
-
----
-
 ## Data Flow Patterns
 
 ### Audio Capture Pipeline
 ```
-System Audio (ScreenCaptureKit/WASAPI)
+System Audio (WASAPI)
     ↓ (or Microphone via CPAL)
     ↓ [Rust audio module]
 PCM 16kHz mono
