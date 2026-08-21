@@ -57,6 +57,15 @@ export class SessionManager {
             }
         });
 
+        // Open saved transcripts folder (kept for Finder access)
+        document.getElementById('btn-open-transcripts')?.addEventListener('click', async () => {
+            try {
+                await this.invoke('open_transcript_dir');
+            } catch (err) {
+                this._showToast('Failed to open folder: ' + err, 'error');
+            }
+        });
+
         // Summarize session with AI
         document.getElementById('btn-session-summarize')?.addEventListener('click', () => {
             this.summarizeSession();

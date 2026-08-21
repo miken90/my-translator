@@ -10,6 +10,31 @@ export class WindowManager {
         this._showToast = showToast || (() => {});
     }
 
+    // ─── Event Binding ──────────────────────────────────────
+
+    // `stopSession` is called before closing the window so an in-progress
+    // session gets its final save (same as the app's own stop() path).
+    bindEvents({ stopSession }) {
+        document.getElementById('btn-close').addEventListener('click', async () => {
+            await this.saveWindowPosition();
+            await stopSession();
+            await this.appWindow.close();
+        });
+
+        document.getElementById('btn-minimize').addEventListener('click', async () => {
+            await this.saveWindowPosition();
+            await this.appWindow.minimize();
+        });
+
+        document.getElementById('btn-pin').addEventListener('click', () => {
+            this.togglePin();
+        });
+
+        document.getElementById('btn-compact').addEventListener('click', () => {
+            this.toggleCompact();
+        });
+    }
+
     // ─── Window Position ───────────────────────────────────
 
     async saveWindowPosition() {

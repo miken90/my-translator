@@ -16,9 +16,13 @@ import { SettingsFormController } from './settings-form-controller.js';
 import { SessionManager } from './session-manager.js';
 import { TTSController } from './tts-controller.js';
 import { SessionState, isToggleBlocked } from './session-state.js';
+import { showToast } from './toast.js';
+import { updateStatusIndicator } from './status-indicator.js';
 
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWindow } = window.__TAURI__.window;
+
+const SOURCE_BUTTONS = [['btn-source-system', 'system'], ['btn-source-mic', 'microphone'], ['btn-source-both', 'both']];
 
 export class App {
     constructor() {
@@ -50,6 +54,7 @@ export class App {
             showToast: (msg, type) => this._showToast(msg, type),
             showView: (view) => this._showView(view),
             onTranslationTypeChange: (type) => this.ttsController.handleTranslationTypeChange(type),
+            getTranscriptUI: () => this.transcriptUI,
         });
         this.sessionManager = new SessionManager({
             transcriptUI: null, // set once TranscriptUI is created in init()
@@ -91,6 +96,7 @@ export class App {
         this.settingsFormController.bindEvents();
         this.sessionManager.bindEvents();
         this.ttsController.bindEvents();
+        this.windowManager.bindEvents({ stopSession: () => this.stop() });
 
         // Bind keyboard shortcuts
         this._bindKeyboardShortcuts();
@@ -122,58 +128,14 @@ export class App {
             this._showView('overlay');
         });
 
-        // Close button (overlay)
-        document.getElementById('btn-close').addEventListener('click', async () => {
-            await this.windowManager.saveWindowPosition();
-            await this.stop();
-            await this.appWindow.close();
-        });
-
-        // Minimize button
-        document.getElementById('btn-minimize').addEventListener('click', async () => {
-            await this.windowManager.saveWindowPosition();
-            await this.appWindow.minimize();
-        });
-
-        // Pin/Unpin button
-        document.getElementById('btn-pin').addEventListener('click', () => {
-            this.windowManager.togglePin();
-        });
-
-        // Compact mode button
-        document.getElementById('btn-compact').addEventListener('click', () => {
-            this.windowManager.toggleCompact();
-        });
-
-        // Font size quick controls
-        document.getElementById('btn-font-up').addEventListener('click', () => this._adjustFontSize(4));
-        document.getElementById('btn-font-down').addEventListener('click', () => this._adjustFontSize(-4));
-
-        // Color dot controls
-        document.querySelectorAll('.color-dot').forEach(dot => {
-            dot.addEventListener('click', () => {
-                document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
-                dot.classList.add('active');
-                const color = dot.dataset.color;
-                this.transcriptUI.configure({ fontColor: color });
-            });
-        });
-
         // Start/Stop button
         document.getElementById('btn-start').addEventListener('click', () => {
             this._handleStartStopToggle();
         });
 
         // Source buttons
-        document.getElementById('btn-source-system').addEventListener('click', () => {
-            this._setSource('system');
-        });
-
-        document.getElementById('btn-source-mic').addEventListener('click', () => {
-            this._setSource('microphone');
-        });
-        document.getElementById('btn-source-both').addEventListener('click', () => {
-            this._setSource('both');
+        SOURCE_BUTTONS.forEach(([id, source]) => {
+            document.getElementById(id).addEventListener('click', () => this._setSource(source));
         });
 
         // Clear button — clears display only (session continues for save purposes)
@@ -190,15 +152,6 @@ export class App {
                 this._showToast('Copied to clipboard', 'success');
             } else {
                 this._showToast('Nothing to copy', 'info');
-            }
-        });
-
-        // Open saved transcripts folder (kept for Finder access)
-        document.getElementById('btn-open-transcripts').addEventListener('click', async () => {
-            try {
-                await invoke('open_transcript_dir');
-            } catch (err) {
-                this._showToast('Failed to open folder: ' + err, 'error');
             }
         });
 
@@ -235,17 +188,28 @@ export class App {
 
     // ─── Keyboard Shortcuts ─────────────────────────────────
 
+    // Cmd/Ctrl + <key> shortcuts, dispatched from a lookup table (Escape is
+    // handled separately below since it doesn't need the modifier key).
+    _keyboardShortcutActions() {
+        return {
+            'Enter': () => this._handleStartStopToggle(),
+            ',': () => this._showView('settings'),
+            '1': () => this._setSource('system'),
+            '2': () => this._setSource('microphone'),
+            '3': () => this._setSource('both'),
+            't': () => this.ttsController.toggle(),
+            'm': () => { this.windowManager.saveWindowPosition(); this.appWindow.minimize(); },
+            'p': () => this.windowManager.togglePin(),
+            'd': () => this.windowManager.toggleCompact(),
+        };
+    }
+
     _bindKeyboardShortcuts() {
+        const actions = this._keyboardShortcutActions();
         document.addEventListener('keydown', (e) => {
             // Ignore when typing in input fields
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
                 return;
-            }
-
-            // Cmd/Ctrl + Enter: Start/Stop
-            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                e.preventDefault();
-                this._handleStartStopToggle();
             }
 
             // Escape: Go back to overlay / close settings
@@ -255,55 +219,14 @@ export class App {
                 if (settingsVisible) {
                     this._showView('overlay');
                 }
+                return;
             }
 
-            // Cmd/Ctrl + ,: Open settings
-            if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+            if (!(e.metaKey || e.ctrlKey)) return;
+            const action = actions[e.key];
+            if (action) {
                 e.preventDefault();
-                this._showView('settings');
-            }
-
-            // Cmd/Ctrl + 1: Switch to System Audio
-            if ((e.metaKey || e.ctrlKey) && e.key === '1') {
-                e.preventDefault();
-                this._setSource('system');
-            }
-
-            // Cmd/Ctrl + 2: Switch to Microphone
-            if ((e.metaKey || e.ctrlKey) && e.key === '2') {
-                e.preventDefault();
-                this._setSource('microphone');
-            }
-
-            // Cmd/Ctrl + 3: Switch to Both
-            if ((e.metaKey || e.ctrlKey) && e.key === '3') {
-                e.preventDefault();
-                this._setSource('both');
-            }
-
-            // Cmd/Ctrl + T: Toggle TTS
-            if ((e.metaKey || e.ctrlKey) && e.key === 't') {
-                e.preventDefault();
-                this.ttsController.toggle();
-            }
-
-            // Cmd/Ctrl + M: Minimize
-            if ((e.metaKey || e.ctrlKey) && e.key === 'm') {
-                e.preventDefault();
-                this.windowManager.saveWindowPosition();
-                this.appWindow.minimize();
-            }
-
-            // Cmd/Ctrl + P: Toggle Pin
-            if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
-                e.preventDefault();
-                this.windowManager.togglePin();
-            }
-
-            // Cmd/Ctrl + D: Toggle Compact
-            if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
-                e.preventDefault();
-                this.windowManager.toggleCompact();
+                action();
             }
         });
     }
@@ -369,12 +292,9 @@ export class App {
     }
 
     _updateSourceButtons() {
-        document.getElementById('btn-source-system').classList.toggle('active',
-            this.currentSource === 'system');
-        document.getElementById('btn-source-mic').classList.toggle('active',
-            this.currentSource === 'microphone');
-        document.getElementById('btn-source-both').classList.toggle('active',
-            this.currentSource === 'both');
+        SOURCE_BUTTONS.forEach(([id, source]) => {
+            document.getElementById(id).classList.toggle('active', this.currentSource === source);
+        });
     }
 
     // ─── Start/Stop ────────────────────────────────────────
@@ -547,82 +467,24 @@ export class App {
     // ─── Status ────────────────────────────────────────────
 
     _updateStatus(status) {
-        const dot = document.getElementById('status-indicator');
-        const text = document.getElementById('status-text');
-
-        dot.className = 'status-dot';
-
-        switch (status) {
-            case 'connecting':
-                dot.classList.add('connecting');
-                text.textContent = 'Connecting...';
-                break;
-            case 'connected':
-                dot.classList.add('connected');
-                text.textContent = 'Listening';
-                break;
-            case 'disconnected':
-                dot.classList.add('disconnected');
-                text.textContent = 'Ready';
-                break;
-            case 'error':
-                dot.classList.add('error');
-                text.textContent = 'Error';
-                break;
-        }
-    }
-
-    _adjustFontSize(delta) {
-        const current = this.transcriptUI.fontSize || 16;
-        const newSize = Math.max(12, Math.min(140, current + delta));
-        this.transcriptUI.configure({ fontSize: newSize });
-
-        // Update display
-        const display = document.getElementById('font-size-display');
-        if (display) display.textContent = newSize;
-
-        // Sync with settings slider
-        const slider = document.getElementById('range-font-size');
-        if (slider) slider.value = newSize;
-        const sliderVal = document.getElementById('font-size-value');
-        if (sliderVal) sliderVal.textContent = `${newSize}px`;
+        updateStatusIndicator(status);
     }
 
     // ─── Toast ─────────────────────────────────────────────
 
     _initAboutTab() {
         // GitHub links
-        document.getElementById('link-github')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            window.__TAURI__?.opener?.openUrl('https://github.com/phuc-nt/my-translator');
-        });
-        document.getElementById('link-issues')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            window.__TAURI__?.opener?.openUrl('https://github.com/phuc-nt/my-translator/issues');
+        [['link-github', 'https://github.com/phuc-nt/my-translator'],
+         ['link-issues', 'https://github.com/phuc-nt/my-translator/issues']].forEach(([id, url]) => {
+            document.getElementById(id)?.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.__TAURI__?.opener?.openUrl(url);
+            });
         });
     }
 
     _showToast(message, type = 'success') {
-        // Remove existing toast
-        const existing = document.querySelector('.toast');
-        if (existing) existing.remove();
-
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.textContent = message;
-        document.body.appendChild(toast);
-
-        // Trigger animation
-        requestAnimationFrame(() => {
-            toast.classList.add('show');
-        });
-
-        // Auto-remove (longer for errors)
-        const duration = type === 'error' ? 5000 : 3000;
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, duration);
+        showToast(message, type);
     }
 }
 

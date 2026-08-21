@@ -6,17 +6,32 @@
  */
 
 export class SettingsFormController {
-    constructor({ settingsManager, appWindow, showToast, showView, onTranslationTypeChange }) {
+    constructor({ settingsManager, appWindow, showToast, showView, onTranslationTypeChange, getTranscriptUI }) {
         this.settingsManager = settingsManager;
         this.appWindow = appWindow;
         this._showToast = showToast || (() => {});
         this._showView = showView || (() => {});
         this._onTranslationTypeChange = onTranslationTypeChange || (() => {});
+        this._getTranscriptUI = getTranscriptUI || (() => null);
     }
 
     // ─── Event Binding ──────────────────────────────────────
 
     bindEvents() {
+        // Font size quick controls (overlay buttons, mirror the settings slider)
+        document.getElementById('btn-font-up')?.addEventListener('click', () => this.adjustFontSize(4));
+        document.getElementById('btn-font-down')?.addEventListener('click', () => this.adjustFontSize(-4));
+
+        // Color dot controls
+        document.querySelectorAll('.color-dot').forEach(dot => {
+            dot.addEventListener('click', () => {
+                document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+                dot.classList.add('active');
+                const color = dot.dataset.color;
+                this._getTranscriptUI()?.configure({ fontColor: color });
+            });
+        });
+
         // Manual drag for settings view
         // data-tauri-drag-region doesn't work well when parent contains buttons
         // Using Tauri's recommended appWindow.startDragging() approach instead
@@ -424,5 +439,23 @@ export class SettingsFormController {
         const sectionContext = document.getElementById('section-soniox-context');
         if (sectionApiKey) sectionApiKey.style.display = isSoniox ? '' : 'none';
         if (sectionContext) sectionContext.style.display = isSoniox ? '' : 'none';
+    }
+
+    adjustFontSize(delta) {
+        const transcriptUI = this._getTranscriptUI();
+        if (!transcriptUI) return;
+        const current = transcriptUI.fontSize || 16;
+        const newSize = Math.max(12, Math.min(140, current + delta));
+        transcriptUI.configure({ fontSize: newSize });
+
+        // Update display
+        const display = document.getElementById('font-size-display');
+        if (display) display.textContent = newSize;
+
+        // Sync with settings slider
+        const slider = document.getElementById('range-font-size');
+        if (slider) slider.value = newSize;
+        const sliderVal = document.getElementById('font-size-value');
+        if (sliderVal) sliderVal.textContent = `${newSize}px`;
     }
 }
