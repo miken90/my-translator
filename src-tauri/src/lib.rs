@@ -33,6 +33,8 @@ pub fn run() {
             commands::transcript::open_transcript_dir,
             commands::transcript::list_transcripts,
             commands::transcript::read_transcript,
+            commands::transcript::update_transcript,
+            commands::transcript::export_transcript,
             commands::edge_tts::edge_tts_speak,
         ])
         .run(tauri::generate_context!())

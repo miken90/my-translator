@@ -16,6 +16,24 @@ fn transcript_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+/// Reject path-traversal filenames. Shared by every command that takes a
+/// caller-provided filename.
+fn is_safe_filename(filename: &str) -> bool {
+    !filename.contains('/') && !filename.contains('\\') && !filename.contains("..")
+}
+
+fn is_supported_export_extension(extension: &str) -> bool {
+    extension == "md" || extension == "txt"
+}
+
+/// Write to `tmp_path` then rename over `filepath` — never a partial
+/// in-place write, so a crash mid-write can't corrupt an existing file.
+fn write_atomic(filepath: &PathBuf, tmp_path: &PathBuf, content: &str) -> Result<(), String> {
+    fs::write(tmp_path, content).map_err(|e| format!("Failed to write temp file: {}", e))?;
+    fs::rename(tmp_path, filepath).map_err(|e| format!("Failed to finalize update: {}", e))?;
+    Ok(())
+}
+
 /// Save a complete transcript session to a timestamped file
 /// Called when user clicks "Clear", stops recording, or closes app
 #[tauri::command]
@@ -127,12 +145,94 @@ pub fn list_transcripts(app: AppHandle) -> Result<Vec<TranscriptEntry>, String> 
 /// Read the content of a saved transcript file
 #[tauri::command]
 pub fn read_transcript(app: AppHandle, filename: String) -> Result<String, String> {
-    // Sanitize: no path traversal
-    if filename.contains('/') || filename.contains('\\') || filename.contains("..") {
+    if !is_safe_filename(&filename) {
         return Err("Invalid filename".to_string());
     }
     let dir = transcript_dir(&app)?;
     let filepath = dir.join(&filename);
     fs::read_to_string(&filepath)
         .map_err(|e| format!("Failed to read transcript: {}", e))
+}
+
+/// Overwrite an existing saved transcript's content (e.g. to add/replace the
+/// AI summary section). Atomic write — see `write_atomic`.
+#[tauri::command]
+pub fn update_transcript(app: AppHandle, filename: String, content: String) -> Result<(), String> {
+    if !is_safe_filename(&filename) {
+        return Err("Invalid filename".to_string());
+    }
+    let dir = transcript_dir(&app)?;
+    let filepath = dir.join(&filename);
+    let tmp_path = dir.join(format!("{}.tmp", filename));
+    write_atomic(&filepath, &tmp_path, &content)
+}
+
+/// Export session content as a standalone timestamped file (.md or .txt),
+/// separate from the canonical auto-saved session file.
+#[tauri::command]
+pub fn export_transcript(app: AppHandle, content: String, extension: String) -> Result<String, String> {
+    if !is_supported_export_extension(&extension) {
+        return Err(format!("Unsupported export extension: {}", extension));
+    }
+    let dir = transcript_dir(&app)?;
+    let now = Local::now();
+    let filename = format!("{}_export.{}", now.format("%Y-%m-%d_%H-%M-%S"), extension);
+    let filepath = dir.join(&filename);
+
+    fs::write(&filepath, content)
+        .map_err(|e| format!("Failed to export transcript: {}", e))?;
+
+    Ok(filepath.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_path_traversal_filenames() {
+        assert!(!is_safe_filename("../settings.json"));
+        assert!(!is_safe_filename("sub/dir.md"));
+        assert!(!is_safe_filename("sub\\dir.md"));
+        assert!(!is_safe_filename("..\\..\\evil.md"));
+    }
+
+    #[test]
+    fn accepts_normal_transcript_filenames() {
+        assert!(is_safe_filename("2026-08-21_10-00-00.md"));
+        assert!(is_safe_filename("_recording.md"));
+        assert!(is_safe_filename("2026-08-21_10-00-00_export.txt"));
+    }
+
+    #[test]
+    fn export_extension_whitelist_is_md_and_txt_only() {
+        assert!(is_supported_export_extension("md"));
+        assert!(is_supported_export_extension("txt"));
+        assert!(!is_supported_export_extension("exe"));
+        assert!(!is_supported_export_extension(""));
+        assert!(!is_supported_export_extension("md "));
+    }
+
+    #[test]
+    fn write_atomic_replaces_existing_file_content_and_removes_tmp() {
+        let dir = std::env::temp_dir().join("my-translator-test-write-atomic");
+        let _ = fs::create_dir_all(&dir);
+        let filepath = dir.join("session.md");
+        let tmp_path = dir.join("session.md.tmp");
+        let _ = fs::remove_file(&filepath);
+        let _ = fs::remove_file(&tmp_path);
+
+        fs::write(&filepath, "original content").expect("seed original file");
+
+        write_atomic(&filepath, &tmp_path, "updated content with ## AI Summary")
+            .expect("atomic write should succeed");
+
+        assert_eq!(
+            fs::read_to_string(&filepath).expect("read back"),
+            "updated content with ## AI Summary"
+        );
+        assert!(!tmp_path.exists(), "tmp file must not remain after rename");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
 }
