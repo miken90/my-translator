@@ -207,7 +207,7 @@ export class App {
             '2': () => this._setSource('microphone'),
             '3': () => this._setSource('both'),
             't': () => this.ttsController.toggle(),
-            'm': () => { this.windowManager.saveWindowPosition(); this.appWindow.minimize(); },
+            'm': () => this.appWindow.minimize(),
             'p': () => this.windowManager.togglePin(),
             'd': () => this.windowManager.toggleCompact(),
         };
@@ -491,6 +491,15 @@ export class App {
                 e.preventDefault();
                 window.__TAURI__?.opener?.openUrl(url);
             });
+        });
+
+        // Running version — left as "—" (placeholder in the HTML) on failure,
+        // never a hardcoded/stale string.
+        window.__TAURI__?.app?.getVersion?.().then((version) => {
+            const el = document.getElementById('about-version');
+            if (el && version) el.textContent = `v${version}`;
+        }).catch((err) => {
+            console.error('Failed to read app version:', err);
         });
     }
 

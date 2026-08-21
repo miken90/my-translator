@@ -123,7 +123,6 @@ body {
   color: var(--text-secondary);
   cursor: pointer;
   transition: all var(--transition-fast);
-  -webkit-app-region: no-drag;
   padding: 0 4px;
   gap: 1px;
 }
@@ -203,7 +202,6 @@ body {
   color: var(--text-secondary);
   cursor: pointer;
   transition: all var(--transition-fast);
-  -webkit-app-region: no-drag;
   font-size: 11px;
   font-weight: 500;
 }
@@ -295,6 +293,7 @@ body {
   margin-left: 4px;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
   pointer-events: none;
 }
 
@@ -375,7 +374,6 @@ body {
   background: rgba(255, 255, 255, 0.04);
   border-radius: var(--radius-sm);
   padding: 2px;
-  -webkit-app-region: no-drag;
 }
 
 .source-btn {
@@ -421,7 +419,6 @@ body {
   color: #fff;
   cursor: pointer;
   transition: all var(--transition-fast);
-  -webkit-app-region: no-drag;
 }
 
 .action-btn:hover {
@@ -821,7 +818,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  -webkit-app-region: no-drag;
 }
 
 #resize-handle::after {
@@ -1151,6 +1147,27 @@ select {
 
 select:focus {
   border-color: var(--border-focus);
+}
+
+/* Margin utilities — replace one-off inline style="margin:…" in index.html */
+.mt-8 {
+  margin-top: 8px;
+}
+
+.mt-12 {
+  margin-top: 12px;
+}
+
+.mb-8 {
+  margin-bottom: 8px;
+}
+
+.mb-10 {
+  margin-bottom: 10px;
+}
+
+.terms-header .hint {
+  margin: 0;
 }
 
 /* Field layout */
@@ -1589,7 +1606,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
   border: 1px solid transparent;
   margin-bottom: 4px;
   background: var(--bg-glass);
-  -webkit-app-region: no-drag;
 }
 
 .session-item:hover {
@@ -1690,7 +1706,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
   font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-fast);
-  -webkit-app-region: no-drag;
   flex-shrink: 0;
 }
 
@@ -1791,12 +1806,14 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 /* Export format select (overlay toolbar + session viewer) */
 .export-format-select {
-  background: var(--bg-hover);
+  background-color: var(--bg-hover);
   color: var(--text-secondary);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   font-size: 11px;
-  padding: 2px 4px;
+  width: auto;
+  min-width: 64px;
+  padding: 2px 24px 2px 6px;
   cursor: pointer;
 }
 

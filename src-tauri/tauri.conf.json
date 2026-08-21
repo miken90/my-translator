@@ -12,9 +12,9 @@
       {
         "label": "main",
         "title": "My Translator",
-        "width": 600,
+        "width": 680,
         "height": 400,
-        "minWidth": 400,
+        "minWidth": 600,
         "minHeight": 200,
         "center": true,
         "transparent": false,

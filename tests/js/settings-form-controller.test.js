@@ -22,6 +22,7 @@ function mountSettingsFormFixture() {
     <span id="font-size-value"></span>
     <input id="range-max-lines" />
     <span id="max-lines-value"></span>
+    <select id="select-export-format"><option value="md">md</option><option value="txt">txt</option></select>
     <div id="context-general-list"></div>
     <textarea id="input-context-terms"></textarea>
     <textarea id="input-context-text"></textarea>
@@ -88,5 +89,39 @@ describe('SettingsFormController.populateForm — endpoint_delay migration', () 
 
     expect(save).not.toHaveBeenCalled();
     expect(document.getElementById('range-endpoint-delay').value).toBe('1500');
+  });
+});
+
+describe('SettingsFormController — export_format round trip', () => {
+  beforeEach(() => {
+    mountSettingsFormFixture();
+  });
+
+  it('populateForm sets the select from a saved export_format', () => {
+    const settingsManager = { get: () => ({ export_format: 'txt' }), save: vi.fn() };
+    const controller = new SettingsFormController({ settingsManager });
+
+    controller.populateForm();
+
+    expect(document.getElementById('select-export-format').value).toBe('txt');
+  });
+
+  it('populateForm defaults the select to md when export_format is absent', () => {
+    const settingsManager = { get: () => ({}), save: vi.fn() };
+    const controller = new SettingsFormController({ settingsManager });
+
+    controller.populateForm();
+
+    expect(document.getElementById('select-export-format').value).toBe('md');
+  });
+
+  it('saveFromForm persists the select value as export_format', async () => {
+    const settingsManager = { get: () => ({}), save: vi.fn() };
+    const controller = new SettingsFormController({ settingsManager });
+    document.getElementById('select-export-format').value = 'txt';
+
+    await controller.saveFromForm();
+
+    expect(settingsManager.save).toHaveBeenCalledWith(expect.objectContaining({ export_format: 'txt' }));
   });
 });

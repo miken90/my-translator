@@ -36,6 +36,45 @@ completes the first pass.
 - [ ] Compact mode hides the control bar
 - [ ] Pin/unpin toggles always-on-top
 
+## Toolbar and Settings (Phase 2)
+
+- [ ] Fresh launch — toolbar shows five visual groups separated by thin
+      dividers: app, transport, status, transcript, window
+- [ ] Click Start — status text turns "Connecting…" (amber) then "Listening"
+      (green); an elapsed timer ("0:0X") ticks up beside it every second.
+      Click Stop — elapsed clears, status returns to muted "Ready"
+- [ ] Copy / Export / Sessions icons sit grouped tight; Clear (trash) sits
+      after a visible gap; hovering Clear turns it red
+- [ ] Settings ▸ Display — an "Export Format" dropdown, full width, arrow
+      visible and not covering the text
+- [ ] Sessions view — a folder icon sits beside the "Sessions" title;
+      clicking it opens the transcripts folder
+- [ ] Dragging the window works from bar gaps, dividers, and the status area;
+      clicking any icon button activates it and does not drag
+
+## Window sizing and small fixes (Phase 5)
+
+- [ ] Settings ▸ About — version reads the app's actual running version
+      (matches `package.json`), never blank/`undefined`/a stale number
+- [ ] Fresh launch — the window opens wide enough that the whole toolbar is
+      visible, close button included, and the status area shows the dot and
+      "Ready" label without touching the icons to its right
+- [ ] While recording, drag the window as narrow as it will go — the elapsed
+      timer truncates or disappears; it never paints on top of the icons to
+      its right
+- [ ] At the narrowest width the window allows, compact/pin/minimize/close
+      are fully visible and clickable; the window refuses to go narrower
+- [ ] At default width, hover the Start button — the blue glow around it
+      renders fully, not clipped
+- [ ] Sessions ▸ open a session — the export-format dropdown beside Copy is
+      compact, shows ".md"/".txt" legibly with a visible arrow
+- [ ] In that viewer, the top-left button is a **×** (closes Sessions, back
+      to the overlay) and the one below it is a **←** (back to the session
+      list) — each does what its icon says
+- [ ] Close the app with the × button and relaunch — session still saves on
+      close, app starts cleanly. Minimize with the button and with Ctrl+M —
+      both still minimize
+
 ## Session persistence
 
 - [ ] Stop a session with content → `.md` file saved to transcripts folder
@@ -52,9 +91,10 @@ completes the first pass.
 
 ## Copy / Export
 
-- [ ] Overlay: Export button (.md) while a session is active — file appears in transcripts folder with per-entry timestamps
-- [ ] Overlay: Export button (.txt) — plain text, no markdown syntax, still has per-entry timestamps
-- [ ] Sessions view: open a past session, Export .md and .txt — both produce a file; content matches what's displayed
+- [ ] Settings ▸ Display ▸ Export Format = .md, Save & Close, then Overlay Export while a session is active — file appears in transcripts folder with per-entry timestamps, `.md` extension
+- [ ] Settings ▸ Display ▸ Export Format = .txt, Save & Close, Overlay Export again — plain text, no markdown syntax, still has per-entry timestamps, `.txt` extension
+- [ ] Fully quit and relaunch the app — the Export Format choice from Settings is still applied (disk persistence, not just the in-memory cache)
+- [ ] Sessions view: open a past session, use the format dropdown beside Copy (.md/.txt) and Export — both produce a file; content matches what's displayed
 
 ## AI summary persistence
 

@@ -1,5 +1,5 @@
 /**
- * WindowManager — pin (always-on-top), compact mode, and window position persistence
+ * WindowManager — pin (always-on-top) and compact mode
  */
 
 export class WindowManager {
@@ -16,13 +16,11 @@ export class WindowManager {
     // session gets its final save (same as the app's own stop() path).
     bindEvents({ stopSession }) {
         document.getElementById('btn-close').addEventListener('click', async () => {
-            await this.saveWindowPosition();
             await stopSession();
             await this.appWindow.close();
         });
 
         document.getElementById('btn-minimize').addEventListener('click', async () => {
-            await this.saveWindowPosition();
             await this.appWindow.minimize();
         });
 
@@ -33,25 +31,6 @@ export class WindowManager {
         document.getElementById('btn-compact').addEventListener('click', () => {
             this.toggleCompact();
         });
-    }
-
-    // ─── Window Position ───────────────────────────────────
-
-    async saveWindowPosition() {
-        try {
-            const factor = await this.appWindow.scaleFactor();
-            const pos = await this.appWindow.outerPosition();
-            const size = await this.appWindow.innerSize();
-            // Save logical coordinates (physical / scaleFactor)
-            localStorage.setItem('window_state', JSON.stringify({
-                x: Math.round(pos.x / factor),
-                y: Math.round(pos.y / factor),
-                width: Math.round(size.width / factor),
-                height: Math.round(size.height / factor),
-            }));
-        } catch (err) {
-            console.error('Failed to save window position:', err);
-        }
     }
 
     // ─── Pin / Unpin (Always on Top) ────────────────────
