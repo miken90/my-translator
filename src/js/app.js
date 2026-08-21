@@ -14,6 +14,7 @@ import { aiSummary } from './ai-summary.js';
 import { WindowManager } from './window-manager.js';
 import { SettingsFormController } from './settings-form-controller.js';
 import { SessionManager } from './session-manager.js';
+import { TTSController } from './tts-controller.js';
 
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWindow } = window.__TAURI__.window;
@@ -31,17 +32,24 @@ class App {
         this.sessionSourceLang = 'auto';
         this.sessionTargetLang = 'vi';
         this.sessionMode = 'one_way';
-        this.ttsEnabled = false;  // TTS runtime toggle
         this._autoSaveTimer = null; // Periodic auto-save interval
         this.windowManager = new WindowManager(this.appWindow, {
             showToast: (msg, type) => this._showToast(msg, type),
+        });
+        this.ttsController = new TTSController({
+            settingsManager,
+            audioPlayer,
+            showToast: (msg, type) => this._showToast(msg, type),
+            showView: (view) => this._showView(view),
+            providers: { edge: edgeTTSRust, google: googleTTS, elevenlabs: elevenLabsTTS },
+            isSessionRunning: () => this.isRunning,
         });
         this.settingsFormController = new SettingsFormController({
             settingsManager,
             appWindow: this.appWindow,
             showToast: (msg, type) => this._showToast(msg, type),
             showView: (view) => this._showView(view),
-            onTranslationTypeChange: (type) => this._handleTranslationTypeChange(type),
+            onTranslationTypeChange: (type) => this.ttsController.handleTranslationTypeChange(type),
         });
         this.sessionManager = new SessionManager({
             transcriptUI: null, // set once TranscriptUI is created in init()
@@ -76,6 +84,7 @@ class App {
         this._bindEvents();
         this.settingsFormController.bindEvents();
         this.sessionManager.bindEvents();
+        this.ttsController.bindEvents();
 
         // Bind keyboard shortcuts
         this._bindKeyboardShortcuts();
@@ -86,18 +95,8 @@ class App {
         // Init audio player for TTS
         audioPlayer.init();
 
-        // Wire TTS audio callbacks for providers that use audioPlayer
-        for (const tts of [elevenLabsTTS, edgeTTSRust, googleTTS]) {
-            tts.onAudioChunk = (base64Audio, isFinal) => {
-                audioPlayer.enqueue(base64Audio);
-            };
-        }
-        for (const tts of [elevenLabsTTS, edgeTTSRust, googleTTS]) {
-            tts.onError = (error) => {
-                console.error('[TTS]', error);
-                this._showToast(error, 'error');
-            };
-        }
+        // Wire TTS audio/error callbacks for providers that use audioPlayer
+        this.ttsController.wireCallbacks((error) => this._showToast(error, 'error'));
 
         this._initAboutTab();
 
@@ -213,11 +212,6 @@ class App {
             }
         });
 
-        // TTS toggle button in overlay
-        document.getElementById('btn-tts').addEventListener('click', () => {
-            this._toggleTTS();
-        });
-
         // Wire Soniox callbacks
         sonioxClient.onOriginal = (text, speaker, language) => {
             this.transcriptUI.addOriginal(text, speaker, language);
@@ -225,7 +219,7 @@ class App {
 
         sonioxClient.onTranslation = (text) => {
             this.transcriptUI.addTranslation(text);
-            this._speakIfEnabled(text);
+            this.ttsController.speakIfEnabled(text);
         };
 
         sonioxClient.onProvisional = (text, speaker, language) => {
@@ -318,7 +312,7 @@ class App {
             // Cmd/Ctrl + T: Toggle TTS
             if ((e.metaKey || e.ctrlKey) && e.key === 't') {
                 e.preventDefault();
-                this._toggleTTS();
+                this.ttsController.toggle();
             }
 
             // Cmd/Ctrl + M: Minimize
@@ -377,117 +371,7 @@ class App {
         this._updateSourceButtons();
 
         // TTS is always OFF on app start — user must toggle on each session
-        this.ttsEnabled = false;
-        this._updateTTSButton();
-    }
-
-    // ─── TTS Control ──────────────────────────────────────
-
-    _toggleTTS() {
-        const settings = settingsManager.get();
-        const provider = settings.tts_provider || 'edge';
-
-        // Block TTS in two-way mode to prevent audio feedback loop
-        const translationType = document.getElementById('select-translation-type')?.value;
-        if (translationType === 'two_way') {
-            this._showToast('TTS is disabled in two-way mode to prevent audio loop', 'error');
-            return;
-        }
-
-        // Check API key for premium providers
-        if (provider === 'elevenlabs' && !settings.elevenlabs_api_key) {
-            this._showToast('Add ElevenLabs API key in Settings → TTS', 'error');
-            this._showView('settings');
-            return;
-        }
-        if (provider === 'google' && !settings.google_tts_api_key) {
-            this._showToast('Add Google TTS API key in Settings → TTS', 'error');
-            this._showView('settings');
-            return;
-        }
-
-        this.ttsEnabled = !this.ttsEnabled;
-        this._updateTTSButton();
-
-        const tts = this._getActiveTTS();
-
-        if (this.ttsEnabled) {
-            this._configureTTS(tts, settings);
-            if (this.isRunning) {
-                tts.connect();
-                audioPlayer.resume();
-            }
-            const label = { edge: 'Edge TTS (Free)', google: 'Google Chirp 3 HD', elevenlabs: 'ElevenLabs' }[provider] || provider;
-            this._showToast(`TTS narration ON 🔊 (${label})`, 'success');
-        } else {
-            tts.disconnect();
-            audioPlayer.stop();
-            this._showToast('TTS narration OFF 🔇', 'success');
-        }
-    }
-
-    _getActiveTTS() {
-        const settings = settingsManager.get();
-        const provider = settings.tts_provider || 'edge';
-        if (provider === 'elevenlabs') return elevenLabsTTS;
-        if (provider === 'google') return googleTTS;
-        return edgeTTSRust;
-    }
-
-    _configureTTS(tts, settings) {
-        const provider = settings.tts_provider || 'edge';
-        if (provider === 'elevenlabs') {
-            tts.configure({
-                apiKey: settings.elevenlabs_api_key,
-                voiceId: settings.tts_voice_id || '21m00Tcm4TlvDq8ikWAM',
-            });
-        } else if (provider === 'google') {
-            const voice = settings.google_tts_voice || 'vi-VN-Chirp3-HD-Aoede';
-            const langCode = voice.replace(/-Chirp3.*/, '');
-            tts.configure({
-                apiKey: settings.google_tts_api_key,
-                voice: voice,
-                languageCode: langCode,
-                speakingRate: settings.google_tts_speed || 1.0,
-            });
-        } else {
-            tts.configure({
-                voice: settings.edge_tts_voice || 'vi-VN-HoaiMyNeural',
-                speed: settings.edge_tts_speed !== undefined ? settings.edge_tts_speed : 20,
-            });
-        }
-    }
-
-    // Cross-module effect of switching translation type: two-way mode force-disables
-    // TTS (to prevent audio feedback loop) and the button always refreshes to match.
-    _handleTranslationTypeChange(type) {
-        if (type === 'two_way' && this.ttsEnabled) {
-            this.ttsEnabled = false;
-            this._getActiveTTS().disconnect();
-            audioPlayer.stop();
-        }
-        this._updateTTSButton();
-    }
-
-    _updateTTSButton() {
-        const btn = document.getElementById('btn-tts');
-        const iconOff = document.getElementById('icon-tts-off');
-        const iconOn = document.getElementById('icon-tts-on');
-        const isTwoWay = document.getElementById('select-translation-type')?.value === 'two_way';
-
-        if (btn) {
-            btn.classList.toggle('active', this.ttsEnabled);
-            btn.classList.toggle('disabled', isTwoWay);
-            btn.title = isTwoWay ? 'TTS disabled in two-way mode' : 'Toggle TTS (Ctrl+T)';
-        }
-        if (iconOff) iconOff.style.display = this.ttsEnabled ? 'none' : 'block';
-        if (iconOn) iconOn.style.display = this.ttsEnabled ? 'block' : 'none';
-    }
-
-    _speakIfEnabled(text) {
-        if (this.ttsEnabled && text?.trim()) {
-            this._getActiveTTS().speak(text);
-        }
+        this.ttsController.resetForAppStart();
     }
 
     // ─── Source Control ────────────────────────────────────
@@ -536,7 +420,7 @@ class App {
         }
 
         // Check ElevenLabs key only if TTS is enabled AND provider is elevenlabs
-        if (this.ttsEnabled && settings.tts_provider === 'elevenlabs' && !settings.elevenlabs_api_key) {
+        if (this.ttsController.ttsEnabled && settings.tts_provider === 'elevenlabs' && !settings.elevenlabs_api_key) {
             this._showToast('TTS is ON but ElevenLabs API key is missing. Add it in Settings or disable TTS.', 'error');
             this._showView('settings');
             return;
@@ -570,12 +454,7 @@ class App {
         await this._startSonioxMode(settings);
 
         // Start TTS if enabled
-        if (this.ttsEnabled) {
-            const tts = this._getActiveTTS();
-            this._configureTTS(tts, settings);
-            tts.connect();
-            audioPlayer.resume();
-        }
+        this.ttsController.onSessionStart(settings);
 
         // Start periodic auto-save (every 2 min)
         this.sessionManager.startAutoSave();
@@ -643,10 +522,7 @@ class App {
         this.transcriptUI.clearProvisional();
 
         // Stop TTS
-        elevenLabsTTS.disconnect();
-        edgeTTSRust.disconnect();
-
-        audioPlayer.stop();
+        this.ttsController.disconnectKnownProviders();
 
         // Stop periodic auto-save
         this.sessionManager.stopAutoSave();
