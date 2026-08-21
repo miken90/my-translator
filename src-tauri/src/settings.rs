@@ -4,14 +4,14 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 /// Translation term: source → target mapping for Soniox
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct TranslationTerm {
     pub source: String,
     pub target: String,
 }
 
 /// Custom context for Soniox — provides domain-specific hints
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq)]
 #[serde(default)]
 pub struct CustomContext {
     pub domain: Option<String>,
@@ -19,7 +19,7 @@ pub struct CustomContext {
 }
 
 /// App settings — persisted to JSON
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(default)]
 pub struct Settings {
     /// Soniox API key
@@ -146,3 +146,69 @@ impl Settings {
 
 /// Thread-safe settings state managed by Tauri
 pub struct SettingsState(pub Mutex<Settings>);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_settings_have_expected_baseline_values() {
+        let s = Settings::default();
+        assert_eq!(s.source_language, "auto");
+        assert_eq!(s.target_language, "vi");
+        assert_eq!(s.audio_source, "system");
+        assert_eq!(s.translation_mode, "soniox");
+        assert_eq!(s.tts_provider, "edge");
+        assert!(s.tts_auto_read);
+        assert!(!s.tts_enabled);
+        assert!(s.custom_context.is_none());
+    }
+
+    #[test]
+    fn settings_survive_a_serde_json_round_trip() {
+        let original = Settings::default();
+        let json = serde_json::to_string_pretty(&original).expect("serialize");
+        let restored: Settings = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(original, restored);
+    }
+
+    #[test]
+    fn missing_fields_in_stored_json_fall_back_to_defaults() {
+        // #[serde(default)] means a partial settings.json (e.g. from an older
+        // version) still deserializes, filling in only the missing fields.
+        let partial = r#"{"soniox_api_key": "sk-abc", "font_size": 22}"#;
+        let restored: Settings = serde_json::from_str(partial).expect("deserialize partial");
+        assert_eq!(restored.soniox_api_key, "sk-abc");
+        assert_eq!(restored.font_size, 22);
+        // Everything else falls back to Default::default() field values.
+        assert_eq!(restored.target_language, Settings::default().target_language);
+    }
+
+    #[test]
+    fn corrupt_json_falls_back_to_default_settings() {
+        // Mirrors the exact fallback expression used in Settings::load()'s
+        // Ok(content) match arm: serde_json::from_str(&content).unwrap_or_default().
+        // Exercised here directly (not via load()) to avoid touching the real
+        // on-disk settings file during tests.
+        let corrupt = "{ this is not valid json ";
+        let restored: Settings = serde_json::from_str(corrupt).unwrap_or_default();
+        assert_eq!(restored, Settings::default());
+    }
+
+    #[test]
+    fn custom_context_round_trips_with_translation_terms() {
+        let ctx = CustomContext {
+            domain: Some("medical".to_string()),
+            translation_terms: vec![TranslationTerm {
+                source: "sin".to_string(),
+                target: "tội".to_string(),
+            }],
+        };
+        let mut settings = Settings::default();
+        settings.custom_context = Some(ctx.clone());
+
+        let json = serde_json::to_string(&settings).expect("serialize");
+        let restored: Settings = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(restored.custom_context, Some(ctx));
+    }
+}
