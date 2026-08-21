@@ -4,20 +4,15 @@
  * Returns base64 MP3 audio, played via audioPlayer.
  */
 
+import { BaseTTSProvider } from './base-tts-provider.js';
+
 const { invoke } = window.__TAURI__.core;
 
-class EdgeTTSRust {
+class EdgeTTSRust extends BaseTTSProvider {
     constructor() {
+        super();
         this.voice = 'vi-VN-HoaiMyNeural';
         this.speed = 20; // percentage: +20% default
-        this.isConnected = false;
-        this._queue = [];
-        this._isSpeaking = false;
-
-        // Same callback interface as other TTS providers
-        this.onAudioChunk = null;
-        this.onError = null;
-        this.onStatusChange = null;
     }
 
     configure({ voice, speed }) {
@@ -31,22 +26,7 @@ class EdgeTTSRust {
         console.log('[Edge TTS] Ready via Rust proxy');
     }
 
-    speak(text) {
-        if (!text?.trim()) return;
-        this._queue.push(text.trim());
-        if (!this._isSpeaking) {
-            this._processQueue();
-        }
-    }
-
-    async _processQueue() {
-        if (this._queue.length === 0) {
-            this._isSpeaking = false;
-            return;
-        }
-
-        this._isSpeaking = true;
-        const text = this._queue.shift();
+    async _synthesize(text) {
         const startTime = performance.now();
 
         try {
@@ -66,20 +46,6 @@ class EdgeTTSRust {
             console.error('[Edge TTS] Error:', err);
             this.onError?.(`Edge TTS: ${err}`);
         }
-
-        // Process next in queue
-        this._processQueue();
-    }
-
-    disconnect() {
-        this._queue = [];
-        this._isSpeaking = false;
-        this.isConnected = false;
-        this._setStatus('disconnected');
-    }
-
-    _setStatus(status) {
-        this.onStatusChange?.(status);
     }
 }
 
