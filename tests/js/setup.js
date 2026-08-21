@@ -11,4 +11,5 @@ if (typeof globalThis.window === 'undefined') {
 }
 globalThis.window.__TAURI__ = {
   core: { invoke: invokeMock },
+  window: { getCurrentWindow: () => ({}) },
 };

@@ -15,14 +15,14 @@ import { WindowManager } from './window-manager.js';
 import { SettingsFormController } from './settings-form-controller.js';
 import { SessionManager } from './session-manager.js';
 import { TTSController } from './tts-controller.js';
+import { SessionState, isToggleBlocked } from './session-state.js';
 
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWindow } = window.__TAURI__.window;
 
-class App {
+export class App {
     constructor() {
-        this.isRunning = false;
-        this.isStarting = false; // Guard against re-entry
+        this.sessionState = SessionState.IDLE;
         this.currentSource = 'system'; // 'system' | 'microphone' | 'both'
         this.translationMode = 'soniox';
         this.transcriptUI = null;
@@ -66,6 +66,12 @@ class App {
                 currentSource: this.currentSource,
             }),
         });
+    }
+
+    // Derived getter — true only while a session is actually connected/listening.
+    // Kept for readability at existing call sites (was a plain boolean field).
+    get isRunning() {
+        return this.sessionState === SessionState.LISTENING;
     }
 
     async init() {
@@ -154,24 +160,8 @@ class App {
         });
 
         // Start/Stop button
-        document.getElementById('btn-start').addEventListener('click', async () => {
-            if (this.isStarting) return; // Prevent re-entry
-            try {
-                if (this.isRunning) {
-                    await this.stop();
-                } else {
-                    this.isStarting = true;
-                    await this.start();
-                }
-            } catch (err) {
-                console.error('[App] Start/Stop error:', err);
-                this._showToast(`Error: ${err}`, 'error');
-                this.isRunning = false;
-                this._updateStartButton();
-                this._updateStatus('error');
-            } finally {
-                this.isStarting = false;
-            }
+        document.getElementById('btn-start').addEventListener('click', () => {
+            this._handleStartStopToggle();
         });
 
         // Source buttons
@@ -255,25 +245,7 @@ class App {
             // Cmd/Ctrl + Enter: Start/Stop
             if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                 e.preventDefault();
-                if (this.isStarting) return;
-                (async () => {
-                    try {
-                        if (this.isRunning) {
-                            await this.stop();
-                        } else {
-                            this.isStarting = true;
-                            await this.start();
-                        }
-                    } catch (err) {
-                        console.error('[App] Keyboard start/stop error:', err);
-                        this._showToast(`Error: ${err}`, 'error');
-                        this.isRunning = false;
-                        this._updateStartButton();
-                        this._updateStatus('error');
-                    } finally {
-                        this.isStarting = false;
-                    }
-                })();
+                this._handleStartStopToggle();
             }
 
             // Escape: Go back to overlay / close settings
@@ -407,6 +379,31 @@ class App {
 
     // ─── Start/Stop ────────────────────────────────────────
 
+    // Single entry point for the start/stop button and its keyboard shortcut.
+    // `CONNECTING` guards re-entrancy while start() is in flight (was `isStarting`);
+    // `STOPPING` additionally guards a toggle click while stop() is tearing down.
+    async _handleStartStopToggle() {
+        if (isToggleBlocked(this.sessionState)) return;
+        try {
+            if (this.sessionState === SessionState.LISTENING) {
+                await this.stop();
+            } else {
+                this.sessionState = SessionState.CONNECTING;
+                await this.start();
+                if (this.sessionState === SessionState.CONNECTING) {
+                    // start() returned early (e.g. missing API key) without reaching LISTENING
+                    this.sessionState = SessionState.IDLE;
+                }
+            }
+        } catch (err) {
+            console.error('[App] Start/Stop error:', err);
+            this._showToast(`Error: ${err}`, 'error');
+            this.sessionState = SessionState.IDLE;
+            this._updateStartButton();
+            this._updateStatus('error');
+        }
+    }
+
     async start() {
         const settings = settingsManager.get();
         this.translationMode = settings.translation_mode || 'soniox';
@@ -426,7 +423,7 @@ class App {
             return;
         }
 
-        this.isRunning = true;
+        this.sessionState = SessionState.LISTENING;
         this._updateStartButton();
         if (!this.recordingStartTime) this.recordingStartTime = Date.now();
 
@@ -505,7 +502,7 @@ class App {
     }
 
     async stop() {
-        this.isRunning = false;
+        this.sessionState = SessionState.STOPPING;
         this._updateStartButton();
 
         // Stop audio capture
@@ -529,6 +526,8 @@ class App {
 
         // Final save on stop — use full sessionLog (not trimmed display buffer)
         await this.sessionManager.finalizeSession();
+
+        this.sessionState = SessionState.IDLE;
 
         // Reset session tracking
         this.sessionStartTime = null;
