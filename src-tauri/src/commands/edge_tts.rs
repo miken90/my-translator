@@ -1,11 +1,16 @@
-/// Edge TTS — proxy WebSocket through Rust to avoid browser header limitations.
-/// Implements the DRM token generation required by Microsoft's TTS service.
+//! Edge TTS — proxy WebSocket through Rust to avoid browser header limitations.
+//! Implements the DRM token generation required by Microsoft's TTS service.
 
 use base64::Engine as _;
 use futures_util::{SinkExt, StreamExt};
 use sha2::{Digest, Sha256};
+use std::time::Duration;
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
+
+/// Max time to wait for the next WebSocket message before giving up.
+/// Bounds the read loop so a response missing `Path:turn.end` cannot hang forever.
+const READ_TIMEOUT: Duration = Duration::from_secs(15);
 
 const BASE_URL: &str = "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1";
 const TRUSTED_CLIENT_TOKEN: &str = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
@@ -66,19 +71,49 @@ pub async fn edge_tts_speak(text: String, voice: String, rate: i32) -> Result<St
         .map_err(|e| format!("Failed to build request: {}", e))?;
 
     let headers = request.headers_mut();
-    headers.insert("Origin", "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold".parse().unwrap());
+    headers.insert(
+        "Origin",
+        "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold"
+            .parse()
+            .map_err(|e| format!("Invalid Origin header: {}", e))?,
+    );
     headers.insert(
         "User-Agent",
         format!(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{}.0.0.0 Safari/537.36 Edg/{}.0.0.0",
             CHROMIUM_MAJOR_VERSION, CHROMIUM_MAJOR_VERSION
-        ).parse().unwrap(),
+        )
+        .parse()
+        .map_err(|e| format!("Invalid User-Agent header: {}", e))?,
     );
-    headers.insert("Pragma", "no-cache".parse().unwrap());
-    headers.insert("Cache-Control", "no-cache".parse().unwrap());
-    headers.insert("Accept-Encoding", "gzip, deflate, br, zstd".parse().unwrap());
-    headers.insert("Accept-Language", "en-US,en;q=0.9".parse().unwrap());
-    headers.insert("Cookie", format!("muid={};", muid).parse().unwrap());
+    headers.insert(
+        "Pragma",
+        "no-cache".parse().map_err(|e| format!("Invalid Pragma header: {}", e))?,
+    );
+    headers.insert(
+        "Cache-Control",
+        "no-cache"
+            .parse()
+            .map_err(|e| format!("Invalid Cache-Control header: {}", e))?,
+    );
+    headers.insert(
+        "Accept-Encoding",
+        "gzip, deflate, br, zstd"
+            .parse()
+            .map_err(|e| format!("Invalid Accept-Encoding header: {}", e))?,
+    );
+    headers.insert(
+        "Accept-Language",
+        "en-US,en;q=0.9"
+            .parse()
+            .map_err(|e| format!("Invalid Accept-Language header: {}", e))?,
+    );
+    headers.insert(
+        "Cookie",
+        format!("muid={};", muid)
+            .parse()
+            .map_err(|e| format!("Invalid Cookie header: {}", e))?,
+    );
 
     let (ws, _) = tokio_tungstenite::connect_async(request)
         .await
@@ -136,7 +171,12 @@ pub async fn edge_tts_speak(text: String, voice: String, rate: i32) -> Result<St
     let mut audio_data: Vec<u8> = Vec::new();
     let mut got_turn_end = false;
 
-    while let Some(msg_result) = read.next().await {
+    loop {
+        let msg_result = match tokio::time::timeout(READ_TIMEOUT, read.next()).await {
+            Ok(Some(result)) => result,
+            Ok(None) => break, // Stream ended
+            Err(_) => return Err("Edge TTS response timed out".into()),
+        };
         match msg_result {
             Ok(Message::Binary(data)) => {
                 // Binary messages: 2 bytes header length (big endian) + header + audio
