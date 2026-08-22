@@ -10,8 +10,8 @@ A privacy-first, real-time speech translation overlay application. Captures syst
 
 | | Details |
 |---|---------|
-| **Current Version** | v0.5.1 |
-| **Release Date** | 2026-04-06 |
+| **Current Version** | v0.7.0 |
+| **Release Date** | 2026-08-22 |
 | **License** | MIT |
 | **Author** | phuc-nt (GitHub: [phuc-nt/my-translator](https://github.com/phuc-nt/my-translator)) |
 | **Platforms** | Windows (10/11) |
@@ -188,6 +188,7 @@ See `project-roadmap.md` for detailed milestones and future features.
 
 | Version | Date | Highlights |
 |---------|------|-----------|
+| 0.7.0 | 2026-08-22 | UI/UX overhaul (single-scroll session viewer, toolbar regroup), Quiet Glass reskin |
 | 0.5.1 | 2026-04-06 | Improved TTS error handling, session history viewer |
 | 0.5.0 | 2026-03-15 | Two-way translation, auto-save transcripts |
 | 0.4.0 | 2026-02-20 | Local MLX mode experimental, ElevenLabs TTS |
@@ -196,5 +197,5 @@ See `project-roadmap.md` for detailed milestones and future features.
 
 ---
 
-**Document updated**: 2026-04-06  
-**Next review**: 2026-05-04 (post-v0.6.0 release)
+**Document updated**: 2026-08-22  
+**Next review**: 2026-09-22 (post-v0.7.0 release)

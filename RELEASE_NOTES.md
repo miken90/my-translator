@@ -1,3 +1,48 @@
+# v0.7.0 — UI/UX Overhaul & Quiet Glass Reskin
+
+This release focuses on the overlay itself: how the session reads, how the
+toolbar is organized, and how the app looks and feels.
+
+## ✨ What's New
+
+- **Session viewer now scrolls as one region.** The AI summary sits on top and
+  the transcript flows below it in a single, unified scroll area — no more
+  juggling two separate scroll boxes.
+- **Toolbar reorganized into labelled groups.** Related controls are grouped
+  together; the export-format picker moved into Settings, and the
+  transcripts-folder button moved into the Sessions view, so the main toolbar
+  stays focused on session controls.
+- **Recording elapsed timer**, so you can see how long a session has been running.
+- **Window minimum width raised** so the close button can no longer get
+  clipped on narrower layouts.
+- **About tab now shows the real app version**, always in sync with the build.
+- **Keyboard focus rings throughout**, plus consistent disabled and scrollbar
+  styling across the app.
+- **Overlay opacity now fades only the background** — text stays fully
+  legible (WCAG AA contrast) at every opacity setting, instead of fading out
+  with the background.
+- **"Quiet Glass" visual refresh** — a calmer, more polished look for the
+  overlay.
+
+## 🐛 Fixes
+
+- The floating action button (`.float-btn`) is now a proper square (was 26×28).
+
+## 📁 Files Changed (selected)
+
+- `src/index.html` — toolbar regroup, session-viewer scroll region markup
+- `src/styles/main.css` — design-token layer, focus/disabled/scrollbar
+  normalization, opacity-fade restructure, Quiet Glass reskin, float-btn fix
+- `src/js/app.js`, `src/js/window-manager.js` — dynamic version display,
+  minWidth enforcement
+- `src/js/status-indicator.js` — recording elapsed timer
+- `src/js/session-manager.js`, `src/js/settings-form-controller.js`,
+  `src/js/settings.js`, `src/js/tts-controller.js` — toolbar-regroup wiring
+- `src-tauri/tauri.conf.json` — window minWidth 600
+- `src-tauri/src/settings.rs` — supporting settings changes for the regroup
+
+---
+
 # v0.6.0 — Windows-Only, Meeting Features & Stability
 
 My Translator is now **Windows-only**, repositioned as a focused real-time

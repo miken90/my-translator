@@ -4,8 +4,8 @@
 
 | Metric | Value |
 |--------|-------|
-| **Latest Version** | v0.5.4 (stable) |
-| **Release Date** | 2026-04-08 |
+| **Latest Version** | v0.7.0 (stable) |
+| **Release Date** | 2026-08-22 |
 | **GitHub Stars** | 600+ |
 | **Active Users** | ~1,000+ monthly |
 | **Platforms** | Windows (macOS support discontinued) |
@@ -92,7 +92,7 @@
 - Bug fixes for audio capture edge cases
 - Minor UI polish
 
-**Status**: ✅ Complete (current version)
+**Status**: ✅ Complete
 
 ---
 
@@ -124,9 +124,25 @@
 
 ---
 
-## Near-Term Roadmap (v0.7.x — Next 4-6 Weeks)
+### v0.7.0 (2026-08-22) — UI/UX Overhaul & Quiet Glass Reskin
+**Focus**: Session-viewer scroll region, toolbar reorganization, accessibility/state normalization, visual reskin
+**Features**:
+- Session viewer restructured into a single scroll region (AI summary on top, transcript below)
+- Toolbar reorganized into labelled groups; export-format picker moved into Settings, transcripts-folder button moved into Sessions view
+- Recording elapsed timer
+- Window minimum width raised (400px → 600px), fixing a clipped close button
+- About tab shows the real build version dynamically (was hardcoded)
+- Keyboard focus-visible rings, disabled-state, and scrollbar styling normalized via a new design-token layer
+- Overlay opacity fades only the background layer — text stays at full WCAG AA contrast at every setting
+- "Quiet Glass" visual reskin
 
-### v0.7.0 (Target: May 2026) — Export Transcripts & Audio Normalization
+**Status**: ✅ Complete
+
+---
+
+## Near-Term Roadmap (Backlog — Unscheduled)
+
+### Export Transcripts & Audio Normalization
 
 #### Priority P1: Export Transcripts
 - **Export formats**: `.txt`, `.srt`, `.vtt`, `.md`
@@ -231,6 +247,10 @@
 | Fast endpoint delay (1500ms default) | v0.5.1 | ✅ Stable |
 | Comprehensive documentation | v0.5.1 | ✅ Complete |
 | AI session summarization (OpenAI-compatible) | v0.6.0 | ✅ Stable |
+| Single-scroll session viewer (summary + transcript) | v0.7.0 | ✅ Stable |
+| Toolbar regrouped into labelled zones | v0.7.0 | ✅ Stable |
+| Opacity slider fades background only (WCAG AA text contrast) | v0.7.0 | ✅ Stable |
+| "Quiet Glass" visual reskin | v0.7.0 | ✅ Stable |
 | Segment pairing fix (LIFO + monotonic IDs) | v0.5.4 | ✅ Stable |
 | Faster audio batching (100ms) | v0.5.4 | ✅ Stable |
 | Crash-safe logging (20-segment flush + orphan recovery) | Phase 6 | ✅ Stable |
@@ -244,8 +264,8 @@
 
 | Feature | Priority | Target Version | Effort | Status |
 |---------|----------|-----------------|--------|--------|
-| Export transcripts as SRT | P1 | v0.7 | 0.5d | 🔄 Backlog (`.md`/`.txt` already shipped) |
-| Audio normalization | P1 | v0.7 | 1d | 🔄 Backlog |
+| Export transcripts as SRT | P1 | Backlog | 0.5d | 🔄 Backlog (`.md`/`.txt` already shipped) |
+| Audio normalization | P1 | Backlog | 1d | 🔄 Backlog |
 | File upload mode | — | — | — | ❌ Cut — out of product scope |
 | Screen OCR translation | — | — | — | ❌ Cut — out of product scope |
 | Furigana (Japanese) | — | — | — | ❌ Cut — out of product scope |
@@ -263,7 +283,7 @@
 |-------|----------|-----------|-----------|
 | WASAPI loopback unavailable on some Windows setups | High | Use "Both" mode (system+mic) or setup virtual audio device | v0.6 |
 | Google TTS rate limit (1M chars/month free tier) | Medium | Switch to Edge TTS (free, unlimited) | Document clearly in TTS guide |
-| Two-way translation auto-detect accuracy | Medium | Manual language selection available | v0.7 (ML-based detection) |
+| Two-way translation auto-detect accuracy | Medium | Manual language selection available | Future (ML-based detection) |
 | Browser CSP prevents direct WebSocket for TTS | Low | Use Rust proxy (implemented) | No change needed |
 
 ### Platform-Specific Limitations
@@ -295,7 +315,7 @@
 | Version | Target Date | Focus |
 |---------|-------------|-------|
 | v0.6.0 | 2026-04-06 | AI session summarization |
-| v0.7.0 | May 2026 | Export + Audio normalization |
+| v0.7.0 | 2026-08-22 | UI/UX overhaul + Quiet Glass reskin |
 | v0.8.0 | June 2026 | File upload mode |
 | v0.9.0 | August 2026 | Screen OCR translation |
 | v1.0.0 | October 2026 | Stable flagship release |
@@ -357,6 +377,6 @@
 
 ---
 
-**Document updated**: 2026-04-06  
-**Next review**: 2026-05-04 (post-v0.6.0 release planning)  
+**Document updated**: 2026-08-22  
+**Next review**: 2026-09-22 (post-v0.7.0 release planning)  
 **Community feedback**: GitHub issues, star trends, download stats tracked monthly

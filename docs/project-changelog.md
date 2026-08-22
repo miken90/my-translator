@@ -4,6 +4,28 @@ All notable changes to My Translator are documented here. Format follows [Keep a
 
 ---
 
+## [v0.7.0] — 2026-08-22
+
+### Added
+- Recording elapsed timer in the toolbar
+- Dynamic version display in the About tab (reads the real build version instead of a hardcoded string)
+
+### Changed
+- Session viewer restructured into a single scroll region (AI summary on top, transcript below), replacing two separate scroll boxes
+- Toolbar reorganized into labelled groups; export-format picker moved into Settings, transcripts-folder button moved into the Sessions view
+- Window minimum width raised (400px → 600px) so the close button can no longer be clipped
+- Overlay opacity slider now fades only the background layer — text stays at full WCAG AA contrast at every opacity setting (previously text faded with the background)
+- Design-token layer introduced in `main.css`; keyboard focus-visible rings, disabled-state, and scrollbar styling normalized across all controls
+- "Quiet Glass" visual reskin applied across the overlay
+
+### Fixed
+- `.float-btn` was 26×28 (non-square) after the reskin; now a proper 28×28 square matching `--control-h-sm`
+- Dark webview base colour set opaque (previously could show a flash of the OS background)
+
+**Status**: ✅ Stable
+
+---
+
 ## [v0.6.0] — 2026-04-06 (Planned)
 
 ### Added
@@ -154,7 +176,7 @@ All notable changes to My Translator are documented here. Format follows [Keep a
 
 ## Notes
 
-- **Document updated**: 2026-04-06
+- **Document updated**: 2026-08-22
 - **Maintainer**: phuc-nt
 - **Version scheme**: [Semantic Versioning](https://semver.org/)
 - **Release cadence**: 4-6 weeks between major versions
