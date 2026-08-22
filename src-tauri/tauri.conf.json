@@ -22,7 +22,7 @@
         "alwaysOnTop": true,
         "resizable": true,
         "skipTaskbar": false,
-        "backgroundColor": "#0f0f14"
+        "backgroundColor": "#0e0f16"
       }
     ],
     "security": {

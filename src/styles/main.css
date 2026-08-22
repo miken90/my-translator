@@ -13,42 +13,45 @@
 }
 
 :root {
-  /* Color Palette */
-  --bg-primary: rgba(15, 15, 20, 0.88);
-  --bg-secondary: rgba(25, 25, 35, 0.92);
-  --bg-glass: rgba(30, 30, 45, 0.65);
-  --bg-input: rgba(40, 40, 55, 0.7);
-  --bg-hover: rgba(60, 60, 80, 0.5);
-  --bg-active: rgba(80, 80, 110, 0.5);
+  /* Color Palette — Concept A "Quiet Glass": same dark-glass identity, every
+     text/border tier lifted one step for legibility. */
+  --bg-primary: rgba(14, 15, 22, 0.92);
+  --bg-secondary: rgba(24, 25, 34, 0.94);
+  --bg-glass: rgba(30, 32, 46, 0.68);
+  --bg-input: rgba(38, 40, 55, 0.72);
+  --bg-hover: rgba(64, 68, 90, 0.55);
+  --bg-active: rgba(86, 92, 120, 0.55);
 
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-light: rgba(255, 255, 255, 0.1);
-  --border-focus: rgba(99, 140, 255, 0.5);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.14);
+  --border-focus: rgba(120, 150, 235, 0.55);
 
-  --text-primary: rgba(255, 255, 255, 0.92);
-  --text-secondary: rgba(255, 255, 255, 0.55);
-  --text-muted: rgba(255, 255, 255, 0.5);
+  --text-primary: rgba(255, 255, 255, 0.96);
+  --text-secondary: rgba(255, 255, 255, 0.72);
+  --text-muted: rgba(255, 255, 255, 0.60);
   --text-on-accent: #fff;
 
-  /* Surfaces — white overlays distinct from --border-light despite one sharing
-     its value (0.1): background vs border are different intents a reskin
-     must move independently. */
-  --surface-1: rgba(255, 255, 255, 0.04);
-  --surface-2: rgba(255, 255, 255, 0.05);
-  --surface-3: rgba(255, 255, 255, 0.1);
+  /* Surfaces — white overlays kept as separate tokens from --border-light:
+     background vs border are different intents a reskin must move
+     independently, even when a value briefly coincides. */
+  --surface-1: rgba(255, 255, 255, 0.05);
+  --surface-2: rgba(255, 255, 255, 0.07);
+  --surface-3: rgba(255, 255, 255, 0.12);
 
-  --accent: #638cff;
-  --accent-hover: #7ea0ff;
-  --accent-glow: rgba(99, 140, 255, 0.15);
-  --accent-alt: #63b3ed;
-  --accent-speaker: #f5a623;
-  --accent-minimize-hover: #facc15;
-  --accent-translation: rgba(255, 140, 200, 0.4);
+  /* Accent calmed: same hue family, lower chroma, so it stops shouting next to
+     the amber speaker label. */
+  --accent: #7a97e0;
+  --accent-hover: #94aeee;
+  --accent-glow: rgba(122, 151, 224, 0.16);
+  --accent-alt: #74b0d8;
+  --accent-speaker: #e5b165;
+  --accent-minimize-hover: #eccc63;
+  --accent-translation: rgba(240, 150, 190, 0.60);
 
-  --success: #4ade80;
-  --warning: #fbbf24;
-  --error: #f87171;
-  --error-strong: #ef4444;
+  --success: #5fd694;
+  --warning: #eec158;
+  --error: #f28b8b;
+  --error-strong: #e85c5c;
 
   /* Sizing */
   --control-bar-height: 42px;
@@ -58,24 +61,26 @@
   --radius-md: 10px;
   --radius-lg: 14px;
 
-  /* Spacing — covers the recurring literals in gap/padding/margin.
+  /* Spacing — snapped to a 4px rhythm. --space-xs now equals --space-2xs and
+     --space-md now equals --space-sm (both intentional collisions, not typos
+     — the names stay distinct so a future reskin can move them apart again).
      1px and 3px (hairlines), 14px (one-off) and 28px (select's arrow
-     clearance, a mechanical offset, not rhythm) deliberately stay literal. */
+     clearance) still stay literal outside this scale. */
   --space-3xs: 2px;
   --space-2xs: 4px;
-  --space-xs: 6px;
+  --space-xs: 4px;
   --space-sm: 8px;
-  --space-md: 10px;
+  --space-md: 8px;
   --space-lg: 12px;
   --space-xl: 16px;
   --space-2xl: 20px;
   --space-3xl: 24px;
 
-  /* Type — 1:1 with the font-size literals in use. */
-  --font-size-xs: 10px;
+  /* Type — six named tokens collapsed onto FOUR rendered sizes: 11/12/14/16. */
+  --font-size-xs: 11px;
   --font-size-sm: 11px;
   --font-size-base: 12px;
-  --font-size-md: 13px;
+  --font-size-md: 14px;
   --font-size-lg: 14px;
   --font-size-xl: 16px;
 
@@ -86,11 +91,10 @@
   --z-compact-catch: 100;
   --z-overlay: 1000;
 
-  /* Control heights — a judgement call, not a frequency rule: these are the
-     interactive-control heights of the overlay chrome specifically
-     (.source-btn 28, .action-btn/.tts-action-btn 30, .icon-btn 32).
-     Settings row-remove buttons (22/24) and session-viewer header buttons
-     (26) belong to a different surface and stay literal. */
+  /* Control heights — three, not seven. Concept A unifies the Settings
+     row-remove buttons (22/24) and session-viewer header buttons (26) onto
+     these via the override block below, so they are no longer a separate
+     literal surface. */
   --control-h-sm: 28px;
   --control-h-md: 30px;
   --control-h-lg: 32px;
@@ -254,13 +258,13 @@ textarea:disabled {
 }
 
 .close-btn:hover {
-  background: rgba(248, 113, 113, 0.2);
+  background: rgba(242, 139, 139, 0.2);
   color: var(--error);
 }
 
 /* Button labels */
 .btn-label {
-  font-size: 8px;
+  font-size: var(--font-size-xs);
   line-height: 1;
   font-weight: 500;
   text-transform: uppercase;
@@ -297,7 +301,7 @@ textarea:disabled {
 }
 
 .btn-clear-danger:hover {
-  background: rgba(248, 113, 113, 0.2);
+  background: rgba(242, 139, 139, 0.2);
   color: var(--error);
 }
 
@@ -335,7 +339,7 @@ textarea:disabled {
 }
 
 .tts-action-btn.active:hover {
-  background: rgba(99, 140, 255, 0.25);
+  background: rgba(122, 151, 224, 0.25);
 }
 
 /* Byte-exact override: the shared button:disabled rule below uses 0.4;
@@ -362,7 +366,7 @@ textarea:disabled {
 
 /* Minimize Button Hover */
 #btn-minimize:hover {
-  background: rgba(250, 204, 21, 0.15);
+  background: rgba(236, 204, 99, 0.15);
   color: var(--accent-minimize-hover);
 }
 
@@ -430,12 +434,12 @@ textarea:disabled {
 
 .status-dot.connected {
   background: var(--success);
-  box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+  box-shadow: 0 0 6px rgba(95, 214, 148, 0.4);
 }
 
 .status-dot.error {
   background: var(--error);
-  box-shadow: 0 0 6px rgba(248, 113, 113, 0.3);
+  box-shadow: 0 0 6px rgba(242, 139, 139, 0.3);
 }
 
 @keyframes pulse {
@@ -557,11 +561,11 @@ textarea:disabled {
 
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.3);
+    box-shadow: 0 0 0 0 rgba(242, 139, 139, 0.3);
   }
 
   50% {
-    box-shadow: 0 0 10px 3px rgba(248, 113, 113, 0.2);
+    box-shadow: 0 0 10px 3px rgba(242, 139, 139, 0.2);
   }
 }
 
@@ -702,8 +706,8 @@ textarea:disabled {
 /* ─── Card Layout ─────────────────────────────────── */
 .seg-card {
   background: var(--surface-1);
-  border-radius: 8px;
-  padding: var(--space-md) 14px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-lg);
   margin-bottom: var(--space-xs);
 }
 
@@ -721,13 +725,13 @@ textarea:disabled {
 
 .seg-header .seg-time {
   margin-left: auto;
-  font-size: 0.7em;
-  color: rgba(255, 255, 255, 0.25);
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
 }
 
 .seg-card .seg-original {
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 0.85em;
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
   margin: 0 0 var(--space-2xs) 0;
 }
 
@@ -739,7 +743,7 @@ textarea:disabled {
 }
 
 .seg-card .seg-translation.pending {
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--text-muted);
   font-style: italic;
   border-left-color: var(--surface-3);
 }
@@ -785,7 +789,7 @@ textarea:disabled {
 
 .float-btn {
   width: 26px;
-  height: 26px;
+  height: var(--control-h-sm);
   border-radius: 5px;
   border: none;
   background: rgba(255, 255, 255, 0.08);
@@ -805,7 +809,7 @@ textarea:disabled {
 }
 
 .float-btn.active {
-  background: rgba(99, 179, 237, 0.2);
+  background: rgba(116, 176, 216, 0.2);
   color: var(--accent-alt);
 }
 
@@ -850,7 +854,7 @@ textarea:disabled {
   display: block;
   color: var(--accent-speaker);
   font-weight: 600;
-  font-size: 0.85em;
+  font-size: var(--font-size-md);
   letter-spacing: 0.02em;
   margin-top: var(--space-lg);
   margin-bottom: var(--space-3xs);
@@ -859,12 +863,12 @@ textarea:disabled {
 /* Language badge — shown when detected language changes */
 .lang-badge {
   display: inline-block;
-  font-size: 0.7em;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   letter-spacing: 0.04em;
   color: rgba(255, 255, 255, 0.5);
-  background: rgba(99, 140, 255, 0.12);
-  border: 1px solid rgba(99, 140, 255, 0.2);
+  background: rgba(122, 151, 224, 0.12);
+  border: 1px solid rgba(122, 151, 224, 0.2);
   border-radius: var(--radius-xs);
   padding: 1px var(--space-xs);
   margin-right: var(--space-2xs);
@@ -873,7 +877,7 @@ textarea:disabled {
 
 /* Low confidence text — highlighted for uncertain transcriptions */
 .low-confidence {
-  border-left: 2px solid rgba(251, 191, 36, 0.5);
+  border-left: 2px solid rgba(238, 193, 88, 0.5);
   padding-left: var(--space-xs);
   color: rgba(255, 255, 255, 0.7);
 }
@@ -1040,8 +1044,8 @@ textarea:disabled {
 }
 
 .btn-icon-sm {
-  width: 24px;
-  height: 24px;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   background: var(--bg-input);
@@ -1069,8 +1073,8 @@ textarea:disabled {
   min-width: 0;
 }
 .term-row .btn-remove-term {
-  width: 22px;
-  height: 22px;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
   border: none;
   border-radius: var(--radius-xs);
   background: transparent;
@@ -1084,7 +1088,7 @@ textarea:disabled {
 }
 .term-row .btn-remove-term:hover {
   color: var(--error);
-  background: rgba(248, 113, 113, 0.1);
+  background: rgba(242, 139, 139, 0.1);
 }
 
 /* General context rows — key/value pairs */
@@ -1105,8 +1109,8 @@ textarea:disabled {
   flex: 0.6;
 }
 .general-row .btn-remove-general {
-  width: 22px;
-  height: 22px;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
   border: none;
   border-radius: var(--radius-xs);
   background: transparent;
@@ -1120,7 +1124,7 @@ textarea:disabled {
 }
 .general-row .btn-remove-general:hover {
   color: var(--error);
-  background: rgba(248, 113, 113, 0.1);
+  background: rgba(242, 139, 139, 0.1);
 }
 
 /* Context subsections */
@@ -1181,7 +1185,7 @@ textarea:disabled {
   color: var(--warning);
   text-transform: none;
   letter-spacing: 0;
-  background: rgba(251, 191, 36, 0.1);
+  background: rgba(238, 193, 88, 0.1);
   padding: 1px var(--space-xs);
   border-radius: var(--radius-xs);
 }
@@ -1191,7 +1195,7 @@ textarea:disabled {
 }
 
 .save-btn-top:hover {
-  background: rgba(74, 222, 128, 0.15) !important;
+  background: rgba(95, 214, 148, 0.15) !important;
   color: var(--success) !important;
 }
 
@@ -1221,7 +1225,7 @@ input[type="password"] {
 input[type="text"]:focus,
 input[type="password"]:focus {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 2px rgba(99, 140, 255, 0.1);
+  box-shadow: 0 0 0 2px rgba(122, 151, 224, 0.1);
 }
 
 input::placeholder {
@@ -1357,7 +1361,7 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%;
   background: var(--accent);
   cursor: pointer;
-  box-shadow: 0 0 4px rgba(99, 140, 255, 0.3);
+  box-shadow: 0 0 4px rgba(122, 151, 224, 0.3);
   transition: transform var(--transition-fast);
 }
 
@@ -1459,7 +1463,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 .primary-btn:hover {
   background: var(--accent-hover);
-  box-shadow: 0 4px 12px rgba(99, 140, 255, 0.25);
+  box-shadow: 0 4px 12px rgba(122, 151, 224, 0.25);
 }
 
 .primary-btn:active {
@@ -1492,15 +1496,15 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 .toast.success {
-  background: rgba(74, 222, 128, 0.15);
+  background: rgba(95, 214, 148, 0.15);
   color: var(--success);
-  border: 1px solid rgba(74, 222, 128, 0.2);
+  border: 1px solid rgba(95, 214, 148, 0.2);
 }
 
 .toast.error {
-  background: rgba(248, 113, 113, 0.15);
+  background: rgba(242, 139, 139, 0.15);
   color: var(--error);
-  border: 1px solid rgba(248, 113, 113, 0.2);
+  border: 1px solid rgba(242, 139, 139, 0.2);
 }
 
 /* ─── Animations ───────────────────────────────────────── */
@@ -1784,7 +1788,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
   display: flex;
   align-items: center;
   gap: var(--space-2xs);
-  height: 26px;
+  height: var(--control-h-sm);
   padding: 0 var(--space-sm);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
