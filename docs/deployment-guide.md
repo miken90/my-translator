@@ -1,6 +1,6 @@
 # Deployment & Build Guide
 
-> **Windows-only.** macOS support and the auto-update / CI release infrastructure described further below are historical and no longer apply. For the current build/release process, see the root `CLAUDE.md` and `scripts/build-release.sh`.
+> **Windows-only.** macOS support and the auto-update / CI release infrastructure described further below are historical and no longer apply. For the current build/release process, see the root `CLAUDE.md` and `scripts/build-release.ps1`.
 
 This guide covers building My Translator from source, setting up the development environment, and releasing new versions.
 
@@ -169,7 +169,7 @@ The repository includes `.github/workflows/release.yml` for automated builds and
 
 To create a release:
 
-1. **Build**: `bash scripts/build-release.sh [version]`
+1. **Build**: `npm run build:release` (or `powershell.exe -NoProfile -File scripts/build-release.ps1 [version]`)
 2. **Create GitHub Release** and upload `dist/MyTranslator-v{version}-windows-x64.zip`
 
 ---
@@ -213,7 +213,7 @@ Before releasing a new version:
 - [ ] Update `docs/project-roadmap.md` (milestone status)
 - [ ] Update `docs/project-changelog.md` (new entry)
 - [ ] Run full test suite: `npm run test` (if tests exist)
-- [ ] Test build on Windows: `bash scripts/build-release.sh [version]`
+- [ ] Test build on Windows: `npm run build:release`
 - [ ] Commit changes: `git commit -m "chore: bump to vX.Y.Z"`
 - [ ] Tag release: `git tag vX.Y.Z`
 - [ ] Push with tags: `git push origin main --tags`

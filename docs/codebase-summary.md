@@ -46,7 +46,7 @@ my-translator/
 │   └── tauri.conf.json              App config (UI size, plugins)
 
 ├── scripts/
-│   └── build-release.sh             Portable release build helper
+│   └── build-release.ps1            Portable release build helper
 │
 ├── .github/workflows/
 │   └── release.yml                  (269 LOC)  CI/CD: build + notarize

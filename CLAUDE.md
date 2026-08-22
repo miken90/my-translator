@@ -11,7 +11,7 @@ Real-time speech translation desktop app. Tauri 2 (Rust) + Vanilla JS (no framew
 
 - **Target**: Portable `.exe` only (no installer)
 - **Build**: `npm install && npm run tauri build` — requires Rust (stable), Node.js 18+
-- **Release script**: `bash scripts/build-release.sh [version]` — builds exe, zips to `dist/`
+- **Release script**: `npm run build:release` (or `powershell.exe -NoProfile -File scripts/build-release.ps1 [version]`) — builds exe, zips to `dist/`
 - **Release asset**: `dist/MyTranslator-v{version}-windows-x64.zip`
 - **Auto-updater**: Hidden — code kept but inactive (`_checkForUpdates` commented out)
 - **Output**: `src-tauri/target/release/my-translator.exe`
