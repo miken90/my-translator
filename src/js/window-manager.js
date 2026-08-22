@@ -1,5 +1,5 @@
 /**
- * WindowManager — pin (always-on-top), compact mode, and window position persistence
+ * WindowManager — pin (always-on-top) and compact mode
  */
 
 export class WindowManager {
@@ -16,13 +16,11 @@ export class WindowManager {
     // session gets its final save (same as the app's own stop() path).
     bindEvents({ stopSession }) {
         document.getElementById('btn-close').addEventListener('click', async () => {
-            await this.saveWindowPosition();
             await stopSession();
             await this.appWindow.close();
         });
 
         document.getElementById('btn-minimize').addEventListener('click', async () => {
-            await this.saveWindowPosition();
             await this.appWindow.minimize();
         });
 
@@ -35,32 +33,16 @@ export class WindowManager {
         });
     }
 
-    // ─── Window Position ───────────────────────────────────
-
-    async saveWindowPosition() {
-        try {
-            const factor = await this.appWindow.scaleFactor();
-            const pos = await this.appWindow.outerPosition();
-            const size = await this.appWindow.innerSize();
-            // Save logical coordinates (physical / scaleFactor)
-            localStorage.setItem('window_state', JSON.stringify({
-                x: Math.round(pos.x / factor),
-                y: Math.round(pos.y / factor),
-                width: Math.round(size.width / factor),
-                height: Math.round(size.height / factor),
-            }));
-        } catch (err) {
-            console.error('Failed to save window position:', err);
-        }
-    }
-
     // ─── Pin / Unpin (Always on Top) ────────────────────
 
     async togglePin() {
         this.isPinned = !this.isPinned;
         await this.appWindow.setAlwaysOnTop(this.isPinned);
         const btn = document.getElementById('btn-pin');
-        if (btn) btn.classList.toggle('active', this.isPinned);
+        if (btn) {
+            btn.classList.toggle('active', this.isPinned);
+            btn.setAttribute('aria-pressed', String(this.isPinned));
+        }
         this._showToast(this.isPinned ? 'Pinned on top' : 'Unpinned — window can go behind other apps', 'success');
     }
 
@@ -70,6 +52,7 @@ export class WindowManager {
         this.isCompact = !this.isCompact;
         const dragRegion = document.getElementById('drag-region');
         const overlay = document.getElementById('overlay-view');
+        const btn = document.getElementById('btn-compact');
 
         if (this.isCompact) {
             dragRegion.classList.add('compact-hidden');
@@ -77,6 +60,10 @@ export class WindowManager {
         } else {
             dragRegion.classList.remove('compact-hidden');
             overlay.classList.remove('compact-mode');
+        }
+        if (btn) {
+            btn.classList.toggle('active', this.isCompact);
+            btn.setAttribute('aria-pressed', String(this.isCompact));
         }
     }
 }

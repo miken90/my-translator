@@ -36,6 +36,8 @@ pub struct Settings {
     pub font_size: u32,
     /// Max transcript lines to display
     pub max_lines: u32,
+    /// Export file format: "md" | "txt"
+    pub export_format: String,
     /// Whether to show original text alongside translation
     pub show_original: bool,
     /// Translation mode: "soniox" (cloud API)
@@ -82,6 +84,7 @@ impl Default for Settings {
             overlay_opacity: 0.85,
             font_size: 16,
             max_lines: 5,
+            export_format: "md".to_string(),
             show_original: true,
             translation_mode: "soniox".to_string(),
             custom_context: None,

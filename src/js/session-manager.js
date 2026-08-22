@@ -73,9 +73,11 @@ export class SessionManager {
             this.exportViewedSession(format);
         });
 
-        // Export live/overlay session
+        // Export live/overlay session — format comes from Settings → Display
+        // (the toolbar select was removed; the Export button remembers the
+        // last chosen format via settingsManager persistence).
         document.getElementById('btn-export')?.addEventListener('click', () => {
-            const format = document.getElementById('select-export-format')?.value || 'md';
+            const format = this.settingsManager.get().export_format || 'md';
             this.exportSession(format);
         });
 

@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS = {
   overlay_opacity: 0.85,
   font_size: 16,
   max_lines: 5,
+  export_format: 'md',
   translation_mode: 'soniox',
   custom_context: null,
   elevenlabs_api_key: '',

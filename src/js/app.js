@@ -18,7 +18,7 @@ import { SessionManager } from './session-manager.js';
 import { TTSController } from './tts-controller.js';
 import { SessionState, isToggleBlocked } from './session-state.js';
 import { showToast } from './toast.js';
-import { updateStatusIndicator } from './status-indicator.js';
+import { updateStatusIndicator, startElapsedTimer, stopElapsedTimer } from './status-indicator.js';
 
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWindow } = window.__TAURI__.window;
@@ -207,7 +207,7 @@ export class App {
             '2': () => this._setSource('microphone'),
             '3': () => this._setSource('both'),
             't': () => this.ttsController.toggle(),
-            'm': () => { this.windowManager.saveWindowPosition(); this.appWindow.minimize(); },
+            'm': () => this.appWindow.minimize(),
             'p': () => this.windowManager.togglePin(),
             'd': () => this.windowManager.toggleCompact(),
         };
@@ -258,9 +258,11 @@ export class App {
     // ─── Apply Settings ────────────────────────────────────
 
     _applySettings(settings) {
-        // Update overlay opacity
+        // Update overlay opacity. This drives `#overlay-view::after` (the background
+        // layer) via a custom property, NOT element opacity — element opacity is a
+        // group operation that fades the transcript and controls along with the panel.
         const overlayView = document.getElementById('overlay-view');
-        overlayView.style.opacity = settings.overlay_opacity || 0.85;
+        overlayView.style.setProperty('--overlay-opacity', settings.overlay_opacity || 0.85);
 
         // Update transcript UI
         if (this.transcriptUI) {
@@ -302,7 +304,10 @@ export class App {
 
     _updateSourceButtons() {
         SOURCE_BUTTONS.forEach(([id, source]) => {
-            document.getElementById(id).classList.toggle('active', this.currentSource === source);
+            const isSelected = this.currentSource === source;
+            const btn = document.getElementById(id);
+            btn.classList.toggle('active', isSelected);
+            btn.setAttribute('aria-checked', String(isSelected));
         });
     }
 
@@ -355,6 +360,7 @@ export class App {
         this.sessionState = SessionState.LISTENING;
         this._updateStartButton();
         if (!this.recordingStartTime) this.recordingStartTime = Date.now();
+        startElapsedTimer(this.recordingStartTime);
 
         // Record session metadata for auto-save
         if (!this.sessionStartTime) {
@@ -433,6 +439,7 @@ export class App {
     async stop() {
         this.sessionState = SessionState.STOPPING;
         this._updateStartButton();
+        stopElapsedTimer();
 
         // Stop audio capture
         try {
@@ -489,6 +496,15 @@ export class App {
                 e.preventDefault();
                 window.__TAURI__?.opener?.openUrl(url);
             });
+        });
+
+        // Running version — left as "—" (placeholder in the HTML) on failure,
+        // never a hardcoded/stale string.
+        window.__TAURI__?.app?.getVersion?.().then((version) => {
+            const el = document.getElementById('about-version');
+            if (el && version) el.textContent = `v${version}`;
+        }).catch((err) => {
+            console.error('Failed to read app version:', err);
         });
     }
 
