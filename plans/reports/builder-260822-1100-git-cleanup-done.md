@@ -22,8 +22,8 @@ Staged only `plans/` (`git add plans/`). Verified `git diff --cached --name-only
 
 This report file included in the same commit (written before commit, then `git add`-ed).
 
-Commit: `docs: add remaining uiux-overhaul and card-layout-speed plan files`
-SHA: **(recorded post-commit below)**
+Commit: `docs: add uiux-overhaul, meeting-refactor, and ai-summary plan files`
+SHA: `b2bc28b374847280a5ca8e7398cc1dee838b9ee8`
 
 Pushed to origin/main, no force.
 
@@ -50,7 +50,7 @@ All local-only; nothing on origin touched, `main` untouched, no tag touched.
 - local `main` == `origin/main`.
 - `v0.7.0` tag present locally and on origin.
 - `git log --all --oneline -- plans/ui-screenshots/` empty — screenshots never entered history.
-- vitest: **(recorded below)**
+- vitest via `powershell.exe -NoProfile -Command "npm test"`: 17 test files, **108/108 passed**. Stderr lines seen are expected error-path test output (mocked "ipc failure"/"disk full"/"boom" rejections), not failures.
 
 ## Unresolved questions
 None.
