@@ -230,9 +230,19 @@ textarea:disabled {
    Done per-child rather than by giving the host a stacking context: a stacking
    context on #overlay-view risks making it a backdrop root, which would leave
    ::after's backdrop-filter with nothing behind it to sample. */
+/* z-index: var(--z-floating), not the bare 1 that only needs to clear
+   #overlay-view::after — #transcript-container (below) is a SIBLING that
+   also sits at z-index:1 to clear the same ::after layer. Tied z-index
+   falls back to DOM order, and #transcript-container comes later, so it
+   was painting on top of #drag-region and everything inside it — including
+   the header's dropdown menus (var(--z-menu):500 only ranks the menu
+   within #drag-region's own local stacking context; it can't out-rank an
+   outer sibling). --z-floating already means "floating chrome above the
+   transcript ground" for .pill/.floating-controls, so it's the correct
+   tier for the header container itself too. */
 #drag-region {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-floating);
   flex-shrink: 0;
   height: var(--control-bar-height);
   border-bottom: 1px solid var(--border-subtle);

@@ -64,6 +64,11 @@ completes the first pass.
 - [ ] Click the ⋯ (More actions) button in the library pill — a menu opens
       with Copy transcript (Ctrl+C), Export… (Ctrl+E), a divider, then a
       red-styled Clear transcript; each action closes the menu after running
+- [ ] With either menu open (idle placeholder state, and again while
+      Listening/recording), confirm the panel is fully opaque and nothing
+      behind it — placeholder text, mic icon, Ctrl+Enter chip, transcript
+      cards — paints on top of or bleeds through the menu; repeat once in
+      compact mode's hover-revealed bar
 - [ ] Press Ctrl+D to enter compact mode, then hover the top 6px strip — the
       bar reveals with the same pill layout; Ctrl+D again exits compact
 - [ ] Click the pin button — icon highlights accent-colored and the window's
