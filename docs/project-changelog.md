@@ -4,6 +4,30 @@ All notable changes to My Translator are documented here. Format follows [Keep a
 
 ---
 
+## [v0.8.0] — 2026-08-27
+
+### Added
+- Mic source picker collapsed into a split-button + menu (System audio / Microphone / Both), with Ctrl+1/2/3 shortcuts preserved
+- Overflow (⋯) menu for Copy transcript / Export / Clear transcript, with new Ctrl+C / Ctrl+E shortcuts
+- Accessible menu semantics (role=menu/menuitem, focus trap, arrow-key navigation), role=status/alert on status text and toasts, settings tabs as a real tablist, meaningful `name` attributes on form inputs, `lang` attribute on translated text
+- Crash-recovery dialog: Esc / scrim-click safe dismiss (keeps the recovered transcript, offered again next boot)
+
+### Changed
+- Header redesigned: 13 controls in 5 zones → 8 controls in 4 floating pill clusters on a bare drag-enabled bar, restoring a continuous ≥48px window-drag surface at every width and state
+- Settings, Sessions, and Session Viewer headers restyled to match the pill pattern; Session Viewer header gains drag support it never had
+- Accent-filled buttons (Save & Close, Recover) switched to a darker accent fill for AA text contrast
+- All keyboard-shortcut hints now display Ctrl instead of Cmd
+
+### Fixed
+- "Listening…" indicator could get stuck on screen after stopping a session before any content had been transcribed
+- Header dropdown menus (mic source menu, ⋯ overflow menu) opened anchored to the window's corner instead of their trigger button
+- Overflow menu could spill past the window's right edge instead of right-aligning under its trigger
+- Header menus could render behind transcript content (a tied z-index between the header and transcript container)
+
+**Status**: ✅ Stable
+
+---
+
 ## [v0.7.0] — 2026-08-22
 
 ### Added

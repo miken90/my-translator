@@ -1,3 +1,43 @@
+# v0.8.0 — Header Restyle: Floating Pill Controls & a Real Drag Surface
+
+The header goes from 13 tightly-packed controls to 8, grouped into 4
+floating pill clusters on a bare, fully draggable bar — restoring a real
+window-drag surface (the app had gotten too crowded to move around your
+screen).
+
+## ✨ What's New
+
+- **Header redesigned into floating pill clusters** (Settings · Transport ·
+  Library · Window), leaving the bar's ground bare and draggable — grab and
+  move the window from anywhere between the pills, even while recording.
+- **Mic source picker collapsed into a split-button menu.** Click the ▾ next
+  to the mic icon for System audio / Microphone / Both, with a check mark on
+  the active source and the same Ctrl+1/2/3 shortcuts as before.
+- **Copy / Export / Clear collapsed into a single ⋯ menu**, with Clear kept
+  clearly danger-styled behind a divider. New Ctrl+C / Ctrl+E shortcuts for
+  Copy and Export.
+- **Settings, Sessions, and Session Viewer headers** get the same pill
+  treatment for a consistent look; the Session Viewer header can now be
+  dragged too.
+- **Accessibility pass**: proper menu semantics (roles, focus trap, arrow-key
+  navigation), status/toast live regions, settings tabs as a real tab list,
+  named form fields, and every shortcut hint now reads Ctrl instead of Cmd.
+- **Crash-recovery dialog** can now be dismissed safely with Esc or a click
+  outside it, without discarding the recovered transcript.
+
+## 🐛 Fixes
+
+- The "Listening…" indicator no longer gets stuck on screen after stopping
+  a session before anything was transcribed.
+- Both header menus now open anchored directly under their trigger button
+  instead of the window's corner.
+- The ⋯ menu right-aligns cleanly under its trigger instead of spilling
+  past the window edge.
+- Header menus now always paint above the transcript — previously the
+  placeholder text and icons could show through an open menu.
+
+---
+
 # v0.7.0 — UI/UX Overhaul & Quiet Glass Reskin
 
 This release focuses on the overlay itself: how the session reads, how the
