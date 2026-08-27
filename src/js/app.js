@@ -237,11 +237,9 @@ export class App {
             'p': () => this.windowManager.togglePin(),
             'd': () => this.windowManager.toggleCompact(),
             // Overflow-menu actions (design-spec.md §5 — Ctrl+C/E hints shown
-            // in the ⋯ menu). Overlay-only: the sessions view has its own
-            // copy/export controls and Ctrl+C there should stay native
-            // selection-copy (session-content-scroll allows text selection).
-            'c': () => this._isOverlayActive() && document.getElementById('btn-copy').click(),
-            'e': () => this._isOverlayActive() && document.getElementById('btn-export').click(),
+            // in the ⋯ menu).
+            'c': () => document.getElementById('btn-copy').click(),
+            'e': () => document.getElementById('btn-export').click(),
         };
     }
 
@@ -251,6 +249,12 @@ export class App {
 
     _bindKeyboardShortcuts() {
         const actions = this._keyboardShortcutActions();
+        // Shortcuts gated on the overlay view being active — the sessions
+        // view has its own copy/export controls, and its
+        // session-content-scroll allows real text selection, so Ctrl+C
+        // there must stay native selection-copy instead of being
+        // preventDefault()-ed away.
+        const overlayOnlyKeys = new Set(['c', 'e']);
         document.addEventListener('keydown', (e) => {
             // Ignore when typing in input fields
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
@@ -269,10 +273,10 @@ export class App {
 
             if (!(e.metaKey || e.ctrlKey)) return;
             const action = actions[e.key];
-            if (action) {
-                e.preventDefault();
-                action();
-            }
+            if (!action) return;
+            if (overlayOnlyKeys.has(e.key) && !this._isOverlayActive()) return;
+            e.preventDefault();
+            action();
         });
     }
 
