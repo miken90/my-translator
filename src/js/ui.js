@@ -220,6 +220,21 @@ export class TranscriptUI {
     }
 
     /**
+     * Retire the transient "Listening..." indicator on stop(). Unlike
+     * _removeListening() (fired only once real content arrives), this is
+     * the stop-path cleanup: with segments already showing, only the
+     * indicator goes; with none, the view drops to the placeholder state
+     * (nothing was ever transcribed, so there is nothing to preserve).
+     */
+    stopListening() {
+        if (this.hasSegments()) {
+            this._removeListening();
+        } else {
+            this.showPlaceholder();
+        }
+    }
+
+    /**
      * Show listening state
      */
     showListening() {

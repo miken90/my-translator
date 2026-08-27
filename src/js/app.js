@@ -506,8 +506,13 @@ export class App {
         // Disconnect Soniox
         sonioxClient.disconnect();
 
-        // Keep transcript visible — don't clear
+        // Keep transcript visible — don't clear. Retire the transient
+        // "Listening..." indicator (stop() never removed it before — if no
+        // content ever arrived it would sit there forever, blocking even
+        // the next start() from restoring it, since hasContent() counted
+        // the stray indicator itself as "content").
         this.transcriptUI.clearProvisional();
+        this.transcriptUI.stopListening();
 
         // Stop TTS
         this.ttsController.disconnectKnownProviders();
