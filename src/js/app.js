@@ -19,11 +19,21 @@ import { TTSController } from './tts-controller.js';
 import { SessionState, isToggleBlocked } from './session-state.js';
 import { showToast } from './toast.js';
 import { updateStatusIndicator, startElapsedTimer, stopElapsedTimer } from './status-indicator.js';
+import { initHeaderMenu } from './header-menus.js';
 
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWindow } = window.__TAURI__.window;
 
 const SOURCE_BUTTONS = [['btn-source-system', 'system'], ['btn-source-mic', 'microphone'], ['btn-source-both', 'both']];
+
+// Leading split-button icon + aria-label per source (Meet mic-device pattern —
+// the button shown before the ▾ chevron reflects the current selection).
+const SOURCE_ICON_HTML = {
+    system: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>',
+    microphone: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>',
+    both: '<svg width="14" height="12" viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="9 6 5 9 2 9 2 15 5 15 9 18 9 6"/><path d="M12.5 9.5a3 3 0 0 1 0 5"/><path d="M20 4a2.5 2.5 0 0 0-2.5 2.5v5a2.5 2.5 0 0 0 5 0v-5A2.5 2.5 0 0 0 20 4z"/><path d="M25 10v1.5a5 5 0 0 1-10 0V10"/></svg>',
+};
+const SOURCE_LABELS = { system: 'System Audio', microphone: 'Microphone', both: 'System + Mic' };
 
 export class App {
     constructor() {
@@ -142,15 +152,30 @@ export class App {
             this._handleStartStopToggle();
         });
 
-        // Source buttons
+        // Header popovers: mic split-button's source menu + ⋯ overflow menu
+        this._sourceMenu = initHeaderMenu({
+            triggers: [document.getElementById('btn-source-current'), document.getElementById('btn-source-menu-toggle')],
+            menuEl: document.getElementById('menu-source'),
+            ariaOwner: document.getElementById('btn-source-menu-toggle'),
+        });
+        this._overflowMenu = initHeaderMenu({
+            triggers: [document.getElementById('btn-overflow-toggle')],
+            menuEl: document.getElementById('menu-overflow'),
+        });
+
+        // Source buttons (now rows inside the source menu)
         SOURCE_BUTTONS.forEach(([id, source]) => {
-            document.getElementById(id).addEventListener('click', () => this._setSource(source));
+            document.getElementById(id).addEventListener('click', () => {
+                this._setSource(source);
+                this._sourceMenu.close();
+            });
         });
 
         // Clear button — clears display only (session continues for save purposes)
         document.getElementById('btn-clear').addEventListener('click', async () => {
             this.transcriptUI.clear();
             this.transcriptUI.showPlaceholder();
+            this._overflowMenu.close();
         });
 
         // Copy transcript button
@@ -162,6 +187,7 @@ export class App {
             } else {
                 this._showToast('Nothing to copy', 'info');
             }
+            this._overflowMenu.close();
         });
 
         // Wire Soniox callbacks
@@ -210,7 +236,17 @@ export class App {
             'm': () => this.appWindow.minimize(),
             'p': () => this.windowManager.togglePin(),
             'd': () => this.windowManager.toggleCompact(),
+            // Overflow-menu actions (design-spec.md §5 — Ctrl+C/E hints shown
+            // in the ⋯ menu). Overlay-only: the sessions view has its own
+            // copy/export controls and Ctrl+C there should stay native
+            // selection-copy (session-content-scroll allows text selection).
+            'c': () => this._isOverlayActive() && document.getElementById('btn-copy').click(),
+            'e': () => this._isOverlayActive() && document.getElementById('btn-export').click(),
         };
+    }
+
+    _isOverlayActive() {
+        return document.getElementById('overlay-view').classList.contains('active');
     }
 
     _bindKeyboardShortcuts() {
@@ -266,9 +302,14 @@ export class App {
 
         // Update transcript UI
         if (this.transcriptUI) {
+            // lang attr on translated text: only meaningful in one-way mode,
+            // where every translation shares one target language. Two-way
+            // mode's direction varies per segment, so it's left unset.
+            const isOneWay = (settings.translation_type || 'one_way') === 'one_way';
             this.transcriptUI.configure({
                 maxLines: settings.max_lines || 5,
                 fontSize: settings.font_size || 16,
+                targetLang: isOneWay ? (settings.target_language || 'vi') : null,
             });
         }
 
@@ -309,6 +350,16 @@ export class App {
             btn.classList.toggle('active', isSelected);
             btn.setAttribute('aria-checked', String(isSelected));
         });
+
+        // Split-button leading icon reflects the current source (Meet
+        // mic-device chevron pattern) — swaps glyph + label, never the
+        // menu's own check marks (handled above via aria-checked).
+        const current = document.getElementById('btn-source-current');
+        if (current) {
+            const label = SOURCE_LABELS[this.currentSource] || this.currentSource;
+            current.innerHTML = SOURCE_ICON_HTML[this.currentSource] || SOURCE_ICON_HTML.system;
+            current.setAttribute('aria-label', `Audio source: ${label}`);
+        }
     }
 
     // ─── Start/Stop ────────────────────────────────────────

@@ -14,62 +14,53 @@
 <body>
   <!-- ═══════════════════ OVERLAY VIEW ═══════════════════ -->
   <div id="overlay-view" class="view active">
-    <!-- Drag Region (title bar area) -->
+    <!-- Drag Region (title bar area) — 13→8 visible controls in 4 floating
+         pill clusters on a bare drag-enabled bar (design-spec.md §5) -->
     <div id="drag-region" data-tauri-drag-region>
       <div class="control-bar" data-tauri-drag-region>
-        <!-- Zone: App -->
-        <button id="btn-settings" class="icon-btn" title="Settings">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3" />
-            <path
-              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-        </button>
 
-        <div class="toolbar-divider" data-tauri-drag-region></div>
+        <!-- Pill A: App -->
+        <div class="pill" role="toolbar" aria-label="App controls">
+          <button id="btn-settings" class="icon-btn" aria-label="Settings (Ctrl+,)" title="Settings (Ctrl+,)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
+        </div>
 
-        <!-- Zone: Transport -->
-        <div class="toolbar-zone toolbar-zone-transport">
-          <div class="source-controls" role="radiogroup" aria-label="Audio source">
-            <button id="btn-source-system" class="source-btn active" role="radio" aria-checked="true" title="System Audio (⌘1)">
+        <!-- Pill B: Transport — stop/start (primary) · mic split-button ▾ · TTS -->
+        <div class="pill" role="toolbar" aria-label="Transport controls">
+          <button id="btn-start" class="icon-btn btn-record" aria-label="Start translating (Space)" title="Start/Stop (Space)">
+            <svg id="icon-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3" />
+            </svg>
+            <svg id="icon-stop" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+            </svg>
+          </button>
+
+          <div class="split">
+            <button id="btn-source-current" class="icon-btn" aria-label="Audio source: System Audio" title="Audio source" aria-haspopup="menu" tabindex="-1">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
                 <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
               </svg>
             </button>
-            <button id="btn-source-mic" class="source-btn" role="radio" aria-checked="false" title="Microphone (⌘2)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-            </button>
-            <button id="btn-source-both" class="source-btn" role="radio" aria-checked="false" title="System + Mic (⌘3)">
-              <svg width="14" height="12" viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="9 6 5 9 2 9 2 15 5 15 9 18 9 6" />
-                <path d="M12.5 9.5a3 3 0 0 1 0 5" />
-                <path d="M20 4a2.5 2.5 0 0 0-2.5 2.5v5a2.5 2.5 0 0 0 5 0v-5A2.5 2.5 0 0 0 20 4z" />
-                <path d="M25 10v1.5a5 5 0 0 1-10 0V10" />
+            <button id="btn-source-menu-toggle" class="icon-btn chev" aria-label="Choose audio source" title="Choose audio source" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-source">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="6 9 12 15 18 9" />
               </svg>
             </button>
           </div>
 
-          <button id="btn-start" class="action-btn" title="Start/Stop (Space)">
-            <svg id="icon-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3" />
-            </svg>
-            <svg id="icon-stop" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:none">
-              <rect x="4" y="4" width="16" height="16" rx="2" />
-            </svg>
-          </button>
-
-          <button id="btn-tts" class="tts-action-btn" aria-pressed="false" title="TTS Narration (⌘T)">
-            <svg id="icon-tts-off" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <button id="btn-tts" class="tts-btn" aria-pressed="false" aria-label="Toggle TTS narration (Ctrl+T)" title="TTS Narration (Ctrl+T)">
+            <svg id="icon-tts-off" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               <line x1="9" y1="10" x2="15" y2="10" />
             </svg>
-            <svg id="icon-tts-on" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:none">
+            <svg id="icon-tts-on" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:none">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               <path d="M9 10h2" /><path d="M13 8v4" /><path d="M15 10h1" />
             </svg>
@@ -77,60 +68,94 @@
           </button>
         </div>
 
-        <div class="toolbar-divider" data-tauri-drag-region></div>
-
-        <!-- Zone: Status (drag surface) -->
-        <div class="status-area" data-tauri-drag-region>
-          <span id="status-indicator" class="status-dot disconnected"></span>
-          <span id="status-text" class="status-text">Ready</span>
-          <span id="status-elapsed" class="status-elapsed"></span>
+        <!-- Audio source menu (Meet mic-device chevron pattern). Items are the
+             original toggle buttons — role/behavior kept, restyled as rows. -->
+        <div id="menu-source" class="menu" role="menu" aria-label="Audio source" hidden>
+          <button id="btn-source-system" class="menu-item" role="menuitemradio" aria-checked="true">
+            <span class="check" aria-hidden="true">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+            </span>
+            <span class="grow">System audio</span>
+            <span class="kbd">Ctrl+1</span>
+          </button>
+          <button id="btn-source-mic" class="menu-item" role="menuitemradio" aria-checked="false">
+            <span class="check" aria-hidden="true">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+            </span>
+            <span class="grow">Microphone</span>
+            <span class="kbd">Ctrl+2</span>
+          </button>
+          <button id="btn-source-both" class="menu-item" role="menuitemradio" aria-checked="false">
+            <span class="check" aria-hidden="true">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+            </span>
+            <span class="grow">Both</span>
+            <span class="kbd">Ctrl+3</span>
+          </button>
         </div>
 
-        <div class="toolbar-divider" data-tauri-drag-region></div>
-
-        <!-- Zone: Transcript -->
-        <div class="toolbar-zone toolbar-zone-transcript">
-          <div class="toolbar-group">
-            <button id="btn-copy" class="icon-btn" title="Copy transcript">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-              </svg>
-            </button>
-
-            <button id="btn-export" class="icon-btn" title="Export transcript with timestamps">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-            </button>
-
-            <button id="btn-sessions" class="icon-btn" title="View saved sessions">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="8" y1="6" x2="21" y2="6" />
-                <line x1="8" y1="12" x2="21" y2="12" />
-                <line x1="8" y1="18" x2="21" y2="18" />
-                <line x1="3" y1="6" x2="3.01" y2="6" />
-                <line x1="3" y1="12" x2="3.01" y2="12" />
-                <line x1="3" y1="18" x2="3.01" y2="18" />
-              </svg>
-            </button>
+        <!-- Bare drag ground — status renders inert (pointer-events:none) on
+             top of it, so the whole center stays draggable (hard acceptance:
+             ≥ --drag-bar-min-gap continuous bare width at 600px, every state). -->
+        <div class="ground" data-tauri-drag-region>
+          <div class="status-area" data-tauri-drag-region>
+            <span id="status-indicator" class="status-dot disconnected"></span>
+            <span id="status-text" class="status-text" role="status" aria-live="polite">Ready</span>
+            <span id="status-elapsed" class="status-elapsed"></span>
           </div>
+        </div>
 
-          <button id="btn-clear" class="icon-btn btn-clear-danger" title="Clear transcript">
+        <!-- Pill C: Library — sessions · ⋯ overflow (copy/export/clear) -->
+        <div class="pill" role="toolbar" aria-label="Library controls">
+          <button id="btn-sessions" class="icon-btn" aria-label="View saved sessions" title="View saved sessions">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
+          </button>
+          <button id="btn-overflow-toggle" class="icon-btn" aria-label="More actions" title="More actions" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-overflow">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
             </svg>
           </button>
         </div>
 
-        <div class="toolbar-divider" data-tauri-drag-region></div>
+        <!-- Overflow menu (Tana/Perplexity pattern) -->
+        <div id="menu-overflow" class="menu" role="menu" aria-label="More actions" hidden>
+          <button id="btn-copy" class="menu-item" role="menuitem" title="Copy transcript">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+            <span class="grow">Copy transcript</span>
+            <span class="kbd">Ctrl+C</span>
+          </button>
+          <button id="btn-export" class="menu-item" role="menuitem" title="Export transcript with timestamps">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span class="grow">Export&hellip;</span>
+            <span class="kbd">Ctrl+E</span>
+          </button>
+          <div class="menu-divider" role="separator"></div>
+          <button id="btn-clear" class="menu-item danger" role="menuitem" title="Clear transcript">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            </svg>
+            <span class="grow">Clear transcript</span>
+          </button>
+        </div>
 
-        <!-- Zone: Window -->
-        <div class="toolbar-zone toolbar-zone-window">
-          <button id="btn-compact" class="icon-btn" aria-pressed="false" title="Compact mode — hide control bar">
+        <!-- Pill D: Window — compact · pin · minimize · close -->
+        <div class="pill" role="toolbar" aria-label="Window controls">
+          <button id="btn-compact" class="icon-btn" aria-pressed="false" aria-label="Compact mode (Ctrl+D)" title="Compact mode — hide control bar (Ctrl+D)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="4 14 10 14 10 20" />
               <polyline points="20 10 14 10 14 4" />
@@ -139,20 +164,20 @@
             </svg>
           </button>
 
-          <button id="btn-pin" class="icon-btn active" aria-pressed="true" title="Pin on top (always visible)">
+          <button id="btn-pin" class="icon-btn active" aria-pressed="true" aria-label="Pin on top (Ctrl+P)" title="Pin on top — always visible (Ctrl+P)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 17v5" />
               <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76z" />
             </svg>
           </button>
 
-          <button id="btn-minimize" class="icon-btn" title="Minimize to taskbar">
+          <button id="btn-minimize" class="icon-btn" aria-label="Minimize to taskbar (Ctrl+M)" title="Minimize to taskbar (Ctrl+M)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
           </button>
 
-          <button id="btn-close" class="icon-btn close-btn" title="Close">
+          <button id="btn-close" class="icon-btn close-btn" aria-label="Close" title="Close">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
@@ -186,9 +211,9 @@
         <button id="btn-font-up" class="float-btn" title="Increase font size">A+</button>
       </div>
       <div class="color-controls">
-        <button class="color-dot active" data-color="#ffffff" title="White" style="background:#ffffff;"></button>
-        <button class="color-dot" data-color="#ffd700" title="Yellow" style="background:#ffd700;"></button>
-        <button class="color-dot" data-color="#00e5ff" title="Cyan" style="background:#00e5ff;"></button>
+        <button class="color-dot active" data-color="#ffffff" aria-pressed="true" aria-label="Text color white" title="White" style="background:#ffffff;"></button>
+        <button class="color-dot" data-color="#ffd700" aria-pressed="false" aria-label="Text color yellow" title="Yellow" style="background:#ffd700;"></button>
+        <button class="color-dot" data-color="#00e5ff" aria-pressed="false" aria-label="Text color cyan" title="Cyan" style="background:#00e5ff;"></button>
       </div>
     </div>
 
@@ -200,36 +225,42 @@
   <div id="settings-view" class="view">
     <div id="settings-drag" data-tauri-drag-region>
       <div class="settings-header">
-        <button id="btn-back" class="icon-btn" title="Back">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-        </button>
-        <h2>Settings</h2>
-        <button id="btn-save-settings-top" class="icon-btn save-btn-top" title="Save & Close">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </button>
+        <div class="pill">
+          <button id="btn-back" class="icon-btn" aria-label="Back to overlay (Esc)" title="Back (Esc)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
+          </button>
+        </div>
+        <div class="ground" data-tauri-drag-region>
+          <span class="view-title">Settings</span>
+        </div>
+        <div class="pill">
+          <button id="btn-save-settings-top" class="icon-btn save-btn-top" aria-label="Save and close settings" title="Save & Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 
     <div class="settings-body">
       <!-- Tab Bar -->
-      <div class="settings-tabs">
-        <button class="settings-tab active" data-tab="tab-translation">Translation</button>
-        <button class="settings-tab" data-tab="tab-display">Display</button>
-        <button class="settings-tab" data-tab="tab-tts">TTS</button>
-        <button class="settings-tab" data-tab="tab-ai">AI</button>
-        <button class="settings-tab" data-tab="tab-about">About</button>
+      <div class="settings-tabs" role="tablist" aria-label="Settings sections">
+        <button class="settings-tab active" id="settings-tab-translation" role="tab" aria-selected="true" aria-controls="tab-translation" data-tab="tab-translation">Translation</button>
+        <button class="settings-tab" id="settings-tab-display" role="tab" aria-selected="false" aria-controls="tab-display" data-tab="tab-display">Display</button>
+        <button class="settings-tab" id="settings-tab-tts" role="tab" aria-selected="false" aria-controls="tab-tts" data-tab="tab-tts">TTS</button>
+        <button class="settings-tab" id="settings-tab-ai" role="tab" aria-selected="false" aria-controls="tab-ai" data-tab="tab-ai">AI</button>
+        <button class="settings-tab" id="settings-tab-about" role="tab" aria-selected="false" aria-controls="tab-about" data-tab="tab-about">About</button>
       </div>
 
       <!-- Tab: Translation -->
-      <div class="settings-tab-content active" id="tab-translation">
+      <div class="settings-tab-content active" id="tab-translation" role="tabpanel" aria-labelledby="settings-tab-translation">
         <div class="settings-section">
           <span class="field-label">Engine</span>
-          <select id="select-translation-mode">
+          <select id="select-translation-mode" name="select-translation-mode">
             <option value="soniox">☁️ Soniox API (Cloud)</option>
           </select>
           <p class="hint" id="hint-mode-soniox">Real-time, 70+ languages, ~$0.12/hr</p>
@@ -238,7 +269,7 @@
         <div class="settings-section" id="section-api-key">
           <span class="field-label">Soniox API Key <span class="required-badge">Required</span></span>
           <div class="input-group">
-            <input type="password" id="input-api-key" placeholder="Enter your Soniox API key..." autocomplete="off" />
+            <input type="password" id="input-api-key" placeholder="Enter your Soniox API key..." autocomplete="off" name="input-api-key" />
             <button id="btn-toggle-key" class="icon-btn small" title="Show/Hide">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
@@ -252,7 +283,7 @@
           <!-- Translation Type -->
           <div class="mb-10">
             <span class="field-label">Translation Type</span>
-            <select id="select-translation-type">
+            <select id="select-translation-type" name="select-translation-type">
               <option value="one_way">One-way → translate all to target</option>
               <option value="two_way">Two-way ↔ translate between two languages</option>
             </select>
@@ -262,7 +293,7 @@
           <div id="section-oneway-langs" class="field-row">
             <div class="field">
               <span class="field-label">Source</span>
-              <select id="select-source-lang">
+              <select id="select-source-lang" name="select-source-lang">
                 <option value="auto">Auto-detect</option>
                 <optgroup label="Popular">
                   <option value="en">English</option>
@@ -332,7 +363,7 @@
             </div>
             <div class="field">
               <span class="field-label">Target</span>
-              <select id="select-target-lang">
+              <select id="select-target-lang" name="select-target-lang">
                 <optgroup label="Popular">
                   <option value="vi">Vietnamese</option>
                   <option value="en">English</option>
@@ -405,7 +436,7 @@
           <div id="section-twoway-langs" class="field-row" style="display:none;">
             <div class="field">
               <span class="field-label">Language A</span>
-              <select id="select-lang-a">
+              <select id="select-lang-a" name="select-lang-a">
                 <optgroup label="Popular">
                   <option value="ja">Japanese</option>
                   <option value="en">English</option>
@@ -422,7 +453,7 @@
             </div>
             <div class="field">
               <span class="field-label">Language B</span>
-              <select id="select-lang-b">
+              <select id="select-lang-b" name="select-lang-b">
                 <optgroup label="Popular">
                   <option value="vi">Vietnamese</option>
                   <option value="en">English</option>
@@ -442,14 +473,14 @@
 
           <!-- Strict Language Detection -->
           <label class="checkbox-option mt-8" id="section-strict-lang">
-            <input type="checkbox" id="check-strict-lang" />
+            <input type="checkbox" id="check-strict-lang" name="check-strict-lang" />
             <span class="checkbox-label">Strict language detection <span class="hint-dim">(reduce false language matches)</span></span>
           </label>
 
           <!-- Endpoint Delay -->
           <div class="slider-field mt-12" id="section-endpoint-delay">
             <span class="field-label" title="Time to wait after speech stops before translating">Endpoint Delay</span>
-            <input type="range" id="range-endpoint-delay" min="500" max="3000" step="100" value="1500" />
+            <input type="range" id="range-endpoint-delay" min="500" max="3000" step="100" value="1500" name="range-endpoint-delay" />
             <span id="endpoint-delay-value" class="range-value">1.5s</span>
           </div>
         </div>
@@ -479,13 +510,13 @@
           <!-- Transcription terms -->
           <div class="context-subsection">
             <span class="hint">Transcription terms <span class="hint-dim">(one per line — domain-specific words)</span></span>
-            <textarea id="input-context-terms" rows="2" placeholder="e.g.&#10;angioplasty&#10;echocardiogram"></textarea>
+            <textarea id="input-context-terms" rows="2" placeholder="e.g.&#10;angioplasty&#10;echocardiogram" name="input-context-terms"></textarea>
           </div>
 
           <!-- Background text -->
           <div class="context-subsection">
             <span class="hint">Background text <span class="hint-dim">(meeting notes, prior context)</span></span>
-            <textarea id="input-context-text" rows="2" placeholder="e.g. This is a follow-up meeting about Q3 results..."></textarea>
+            <textarea id="input-context-text" rows="2" placeholder="e.g. This is a follow-up meeting about Q3 results..." name="input-context-text"></textarea>
           </div>
 
           <!-- Translation terms -->
@@ -500,27 +531,27 @@
       </div>
 
       <!-- Tab: Display -->
-      <div class="settings-tab-content" id="tab-display">
+      <div class="settings-tab-content" id="tab-display" role="tabpanel" aria-labelledby="settings-tab-display">
         <div class="settings-section">
           <div class="slider-field">
             <span class="field-label">Opacity</span>
-            <input type="range" id="range-opacity" min="20" max="100" value="85" />
+            <input type="range" id="range-opacity" min="20" max="100" value="85" name="range-opacity" />
             <span id="opacity-value" class="range-value">85%</span>
           </div>
           <div class="slider-field">
             <span class="field-label">Font Size</span>
-            <input type="range" id="range-font-size" min="12" max="140" value="16" />
+            <input type="range" id="range-font-size" min="12" max="140" value="16" name="range-font-size" />
             <span id="font-size-value" class="range-value">16px</span>
           </div>
           <div class="slider-field">
             <span class="field-label">Max Lines</span>
-            <input type="range" id="range-max-lines" min="2" max="15" value="5" />
+            <input type="range" id="range-max-lines" min="2" max="15" value="5" name="range-max-lines" />
             <span id="max-lines-value" class="range-value">5</span>
           </div>
         </div>
         <div class="settings-section">
           <span class="field-label">Export Format</span>
-          <select id="select-export-format" title="Export format">
+          <select id="select-export-format" title="Export format" name="select-export-format">
             <option value="md">Markdown (.md)</option>
             <option value="txt">Plain text (.txt)</option>
           </select>
@@ -529,10 +560,10 @@
       </div>
 
       <!-- Tab: TTS -->
-      <div class="settings-tab-content" id="tab-tts">
+      <div class="settings-tab-content" id="tab-tts" role="tabpanel" aria-labelledby="settings-tab-tts">
         <div class="settings-section">
           <span class="field-label">Provider</span>
-          <select id="select-tts-provider">
+          <select id="select-tts-provider" name="select-tts-provider">
             <option value="edge">🎙️ Edge TTS — Free</option>
             <option value="google">🌐 Google Chirp 3 HD — Premium</option>
             <option value="elevenlabs">✨ ElevenLabs — Premium</option>
@@ -544,7 +575,7 @@
         <div class="settings-section" id="tts-edge-settings">
           <div class="field">
             <span class="field-label">Voice</span>
-            <select id="select-edge-voice">
+            <select id="select-edge-voice" name="select-edge-voice">
               <option value="vi-VN-HoaiMyNeural">HoaiMy — Nữ 🇻🇳</option>
               <option value="vi-VN-NamMinhNeural">NamMinh — Nam 🇻🇳</option>
               <option value="en-US-JennyNeural">Jenny — Female 🇺🇸</option>
@@ -556,7 +587,7 @@
           </div>
           <div class="slider-field mt-8">
             <span class="field-label">Speed</span>
-            <input type="range" id="range-edge-speed" min="-50" max="100" step="10" />
+            <input type="range" id="range-edge-speed" min="-50" max="100" step="10" name="range-edge-speed" />
             <span id="edge-speed-value" class="range-value"></span>
           </div>
         </div>
@@ -565,7 +596,7 @@
         <div class="settings-section" id="tts-google-settings" style="display:none;">
           <span class="field-label">Google Cloud API Key</span>
           <div class="input-group">
-            <input type="password" id="input-google-tts-key" placeholder="AIzaSy..." autocomplete="off" />
+            <input type="password" id="input-google-tts-key" placeholder="AIzaSy..." autocomplete="off" name="input-google-tts-key" />
             <button id="btn-toggle-google-key" class="icon-btn small" title="Show/Hide">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
@@ -575,7 +606,7 @@
           <p class="hint">console.cloud.google.com → Enable Text-to-Speech API → Create API Key</p>
           <div class="field mt-8">
             <span class="field-label">Voice</span>
-            <select id="select-google-voice">
+            <select id="select-google-voice" name="select-google-voice">
               <optgroup label="🇻🇳 Vietnamese">
                 <option value="vi-VN-Chirp3-HD-Aoede">Aoede — Nữ</option>
                 <option value="vi-VN-Chirp3-HD-Kore">Kore — Nữ</option>
@@ -606,7 +637,7 @@
           </div>
           <div class="slider-field mt-8">
             <span class="field-label">Speed</span>
-            <input type="range" id="range-google-speed" min="0.5" max="2.0" step="0.1" value="1.0" />
+            <input type="range" id="range-google-speed" min="0.5" max="2.0" step="0.1" value="1.0" name="range-google-speed" />
             <span id="google-speed-value" class="range-value">1.0x</span>
           </div>
         </div>
@@ -615,7 +646,7 @@
         <div class="settings-section" id="tts-elevenlabs-settings" style="display:none;">
           <span class="field-label">ElevenLabs API Key</span>
           <div class="input-group">
-            <input type="password" id="input-elevenlabs-key" placeholder="Enter key..." autocomplete="off" />
+            <input type="password" id="input-elevenlabs-key" placeholder="Enter key..." autocomplete="off" name="input-elevenlabs-key" />
             <button id="btn-toggle-elevenlabs-key" class="icon-btn small" title="Show/Hide">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
@@ -625,7 +656,7 @@
           <p class="hint">elevenlabs.io — Premium quality</p>
           <div class="field mt-8">
             <span class="field-label">Voice</span>
-            <select id="select-tts-voice">
+            <select id="select-tts-voice" name="select-tts-voice">
               <option value="21m00Tcm4TlvDq8ikWAM">Rachel — Female</option>
               <option value="EXAVITQu4vr4xnSDxMaL">Sarah — Female</option>
               <option value="onwK4e9ZLuTAKqWW03F9">Daniel — Male</option>
@@ -636,16 +667,16 @@
       </div>
 
       <!-- Tab: AI Summary -->
-      <div class="settings-tab-content" id="tab-ai">
+      <div class="settings-tab-content" id="tab-ai" role="tabpanel" aria-labelledby="settings-tab-ai">
         <div class="settings-section">
           <span class="field-label">AI Endpoint</span>
-          <input type="text" id="input-ai-endpoint" placeholder="https://api.openai.com/v1" autocomplete="off" />
+          <input type="text" id="input-ai-endpoint" placeholder="https://api.openai.com/v1" autocomplete="off" name="input-ai-endpoint" />
           <p class="hint">OpenAI-compatible API base URL</p>
         </div>
         <div class="settings-section">
           <span class="field-label">API Key</span>
           <div class="input-group">
-            <input type="password" id="input-ai-api-key" placeholder="sk-..." autocomplete="off" />
+            <input type="password" id="input-ai-api-key" placeholder="sk-..." autocomplete="off" name="input-ai-api-key" />
             <button id="btn-toggle-ai-key" class="icon-btn small" title="Show/Hide">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
@@ -655,13 +686,13 @@
         </div>
         <div class="settings-section">
           <span class="field-label">Model</span>
-          <input type="text" id="input-ai-model" placeholder="gpt-4o-mini" autocomplete="off" />
+          <input type="text" id="input-ai-model" placeholder="gpt-4o-mini" autocomplete="off" name="input-ai-model" />
           <p class="hint">Model name for summarization</p>
         </div>
       </div>
 
       <!-- Tab: About -->
-      <div class="settings-tab-content" id="tab-about">
+      <div class="settings-tab-content" id="tab-about" role="tabpanel" aria-labelledby="settings-tab-about">
         <div class="settings-section about-info">
           <div class="about-app-header">
             <span class="about-app-name">My Translator</span>
@@ -693,18 +724,24 @@
   <!-- ═══════════════════ SESSIONS VIEW ═══════════════════ -->
   <div id="sessions-view" class="view">
     <div class="sessions-header" data-tauri-drag-region>
-      <button id="btn-sessions-back" class="icon-btn" title="Close Sessions">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
-      <span class="sessions-title">Sessions</span>
-      <button id="btn-open-transcripts" class="icon-btn" title="Open saved transcripts folder">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-        </svg>
-      </button>
+      <div class="pill">
+        <button id="btn-sessions-back" class="icon-btn" aria-label="Close sessions, back to overlay" title="Close Sessions">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="ground" data-tauri-drag-region>
+        <span class="sessions-title view-title">Sessions</span>
+      </div>
+      <div class="pill">
+        <button id="btn-open-transcripts" class="icon-btn" aria-label="Open saved transcripts folder" title="Open saved transcripts folder">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
+        </button>
+      </div>
     </div>
 
     <!-- Session list panel -->
@@ -714,42 +751,46 @@
 
     <!-- Session viewer (shown when a session is selected) -->
     <div id="session-viewer" class="sessions-body" style="display:none">
-      <div class="session-viewer-header">
-        <button id="btn-session-back-to-list" class="icon-btn" title="Back to list">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-        </button>
-        <span id="session-viewer-title" class="session-viewer-title-text"></span>
-        <button id="btn-session-copy" class="session-copy-btn" title="Copy content">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-          </svg>
-          Copy
-        </button>
-        <select id="select-session-export-format" class="export-format-select" title="Export format">
-          <option value="md">.md</option>
-          <option value="txt">.txt</option>
-        </select>
-        <button id="btn-session-export" class="session-copy-btn" title="Export session">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          Export
-        </button>
-        <button id="btn-session-summarize" class="session-copy-btn" title="Summarize with AI">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-          </svg>
-          Summary
-        </button>
+      <div class="session-viewer-header" data-tauri-drag-region>
+        <div class="pill">
+          <button id="btn-session-back-to-list" class="icon-btn" aria-label="Back to sessions list" title="Back to list">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
+          </button>
+        </div>
+        <div class="ground" data-tauri-drag-region>
+          <span id="session-viewer-title" class="session-viewer-title-text view-title"></span>
+        </div>
+        <div class="pill" role="toolbar" aria-label="Session actions">
+          <button id="btn-session-copy" class="icon-btn" aria-label="Copy session content" title="Copy content">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          </button>
+          <select id="select-session-export-format" name="session-export-format" class="export-format-select" aria-label="Export format" title="Export format">
+            <option value="md">.md</option>
+            <option value="txt">.txt</option>
+          </select>
+          <button id="btn-session-export" class="icon-btn" aria-label="Export session" title="Export session">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          </button>
+          <button id="btn-session-summarize" class="tts-btn" aria-label="Summarize session with AI" title="Summarize with AI">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+            Summary
+          </button>
+        </div>
       </div>
       <div class="session-scroll-region">
         <!-- AI Summary section (shown after summarize) — above the transcript -->
@@ -770,7 +811,7 @@
         <p id="qa-hint" class="hint" style="display:none">Configure AI in Settings → AI to ask questions about this transcript.</p>
         <div id="qa-messages" class="qa-messages"></div>
         <div class="qa-input-row">
-          <input type="text" id="input-qa-question" placeholder="Ask a question about this session..." autocomplete="off" />
+          <input type="text" id="input-qa-question" placeholder="Ask a question about this session..." autocomplete="off" name="input-qa-question" />
           <button id="btn-qa-ask" class="icon-btn" title="Ask">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="22" y1="2" x2="11" y2="13" />
@@ -784,19 +825,19 @@
 
   <!-- ═══════════════════ CRASH RECOVERY DIALOG ═══════════════════ -->
   <div id="recovery-dialog" class="modal-overlay" style="display:none">
-    <div class="modal-card">
+    <div class="modal-card" role="alertdialog" aria-modal="true" aria-labelledby="recovery-title" aria-describedby="recovery-desc">
       <div class="modal-header">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
           <path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
         </svg>
-        <h3>Recover previous session?</h3>
+        <h3 id="recovery-title">Recover previous session?</h3>
       </div>
       <div class="modal-body">
-        <p class="modal-desc">The app didn't shut down cleanly last time. An in-progress transcript was found — recover it as a saved session, or discard it.</p>
+        <p class="modal-desc" id="recovery-desc">The app didn't shut down cleanly last time. An in-progress transcript was found — recover it as a saved session, or discard it.</p>
       </div>
       <div class="modal-footer">
         <button id="btn-recovery-discard" class="secondary-btn">Discard</button>
-        <button id="btn-recovery-recover" class="primary-btn">Recover</button>
+        <button id="btn-recovery-recover" class="primary-btn" autofocus>Recover</button>
       </div>
     </div>
   </div>

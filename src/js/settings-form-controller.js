@@ -25,8 +25,12 @@ export class SettingsFormController {
         // Color dot controls
         document.querySelectorAll('.color-dot').forEach(dot => {
             dot.addEventListener('click', () => {
-                document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+                document.querySelectorAll('.color-dot').forEach(d => {
+                    d.classList.remove('active');
+                    d.setAttribute('aria-pressed', 'false');
+                });
                 dot.classList.add('active');
+                dot.setAttribute('aria-pressed', 'true');
                 const color = dot.dataset.color;
                 this._getTranscriptUI()?.configure({ fontColor: color });
             });
@@ -115,9 +119,13 @@ export class SettingsFormController {
         // Settings tab switching
         document.querySelectorAll('.settings-tab').forEach(tab => {
             tab.addEventListener('click', () => {
-                document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.settings-tab').forEach(t => {
+                    t.classList.remove('active');
+                    t.setAttribute('aria-selected', 'false');
+                });
                 document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
                 tab.classList.add('active');
+                tab.setAttribute('aria-selected', 'true');
                 document.getElementById(tab.dataset.tab)?.classList.add('active');
             });
         });
