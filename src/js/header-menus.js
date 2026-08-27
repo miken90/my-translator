@@ -8,6 +8,37 @@
 const _openMenus = [];
 
 /**
+ * Anchors `menuEl` (position:absolute, offsetParent is the bare-ground
+ * .control-bar — position:relative) under its trigger button(s), using
+ * viewport rects so it works regardless of intermediate positioned
+ * ancestors (each .pill is itself position:relative). Right-aligns when
+ * the trigger sits in the right half of the bar, so a min-width:168px
+ * menu never clips past the window's right edge at the 600px minimum
+ * width — the CSS alone had no top/left/right, so every menu previously
+ * fell back to its flex-item static position (the bar's top-left corner).
+ */
+export function positionMenu(menuEl, triggers) {
+    const parent = menuEl.offsetParent || menuEl.parentElement;
+    const parentRect = parent.getBoundingClientRect();
+    const rects = triggers.map((t) => t.getBoundingClientRect());
+    const anchorLeft = Math.min(...rects.map((r) => r.left));
+    const anchorRight = Math.max(...rects.map((r) => r.right));
+    const anchorBottom = Math.max(...rects.map((r) => r.bottom));
+
+    const gap = 4;
+    menuEl.style.top = `${anchorBottom - parentRect.top + gap}px`;
+
+    const barCenterX = parentRect.left + parentRect.width / 2;
+    if (anchorLeft >= barCenterX) {
+        menuEl.style.right = `${Math.max(parentRect.right - anchorRight, 0)}px`;
+        menuEl.style.left = 'auto';
+    } else {
+        menuEl.style.left = `${Math.max(anchorLeft - parentRect.left, 0)}px`;
+        menuEl.style.right = 'auto';
+    }
+}
+
+/**
  * @param {object} opts
  * @param {HTMLElement[]} opts.triggers - elements that toggle the menu on click
  * @param {HTMLElement} opts.menuEl - the menu panel (role="menu")
@@ -29,7 +60,10 @@ export function initHeaderMenu({ triggers, menuEl, ariaOwner } = {}) {
         if (isOpen) return;
         closeAllHeaderMenus();
         isOpen = true;
+        // Unhide before measuring — offsetParent/layout are unavailable
+        // (null/zeroed) on a display:none element.
         menuEl.hidden = false;
+        positionMenu(menuEl, triggers);
         owner.setAttribute('aria-expanded', 'true');
         const firstItem = menuEl.querySelector('[role^="menuitem"]');
         firstItem?.focus();
