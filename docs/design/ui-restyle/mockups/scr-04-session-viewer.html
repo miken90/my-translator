@@ -1,0 +1,334 @@
+<!doctype html>
+<!--
+  SCR-04 — Session Viewer — pilot mockup
+  Layout follows Mobbin refs (design-spec.md §7):
+    · Otter transcript + AI chat — summary above transcript + "ask" input pattern
+    · Fireflies AskFred — transcript + AI Q&A thread (user/assistant bubbles)
+    · Perplexity ⋯ export menu — export action grouping in the header
+    · Discord call bar — header pills float on bare drag ground (kept from SCR-01 pattern)
+  Tokens: ../tokens.css exclusively. Structural layout px only (stage 680×400,
+  flex/positioning). Stage bg #0e0f16 = tauri.conf.json window background (kept
+  app value). Header keeps bare drag ground per design-spec §5 flow requirement.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SCR-04 Session Viewer — ui-restyle mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <style>
+    /* ————— mockup scaffolding (not part of the design) ————— */
+    :root { color-scheme: dark; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000; /* scaffolding backdrop only */
+      font-family: var(--font-ui);
+      color: var(--text-primary);
+      display: flex; flex-direction: column; align-items: center;
+      gap: 12px; padding: 40px 16px 80px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .mock-caption { font-size: var(--font-size-base); color: var(--text-secondary); }
+
+    /* ————— window stage: 680×400 at real size ————— */
+    .stage {
+      width: 680px; height: 400px; flex: none;
+      background: #0e0f16; /* tauri.conf window bg (kept) */
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      overflow: hidden; position: relative;
+      display: flex; flex-direction: column;
+    }
+
+    button {
+      font-family: var(--font-ui); background: none; border: none;
+      color: var(--text-secondary); cursor: pointer; position: relative;
+    }
+    button:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 2px solid var(--border-focus); outline-offset: 1px;
+    }
+    /* 44px min hit area inside the 42px bar: invisible padding extension.
+       Mid-pill buttons extend vertically only (no overlapping halos);
+       outermost pill buttons also extend outward horizontally. */
+    .icon-btn::before { content: ""; position: absolute; inset: -8px 0; }
+    .pill > .icon-btn:first-child::before { left: -8px; }
+    .pill > .icon-btn:last-child::before { right: -8px; }
+
+    /* ═════════ HEADER — 42px bar, pills on bare drag ground (kept) ═════════ */
+    .bar {
+      height: var(--control-bar-height); flex: none;
+      display: flex; align-items: center;
+      gap: var(--space-sm); padding: 0 var(--space-xs);
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-subtle);
+      position: relative;
+    }
+    .pill {
+      display: flex; align-items: center; gap: var(--cluster-gap);
+      padding: var(--cluster-pad);
+      background: var(--cluster-bg);
+      border: 1px solid var(--cluster-border);
+      border-radius: var(--cluster-radius);
+      position: relative; z-index: 1; flex: none;
+    }
+    .pill .icon-btn {
+      width: var(--control-h-sm); height: var(--control-h-sm);
+      display: flex; align-items: center; justify-content: center;
+      border-radius: var(--cluster-radius);
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+    .pill .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .pill .icon-btn:active { background: var(--bg-active); }
+    .pill .text-btn {
+      height: var(--control-h-sm); padding: 0 var(--space-sm);
+      display: flex; align-items: center; gap: var(--space-2xs);
+      border-radius: var(--cluster-radius);
+      font-size: var(--font-size-xs); font-weight: 600;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+    .pill .text-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .format-select {
+      font-family: var(--font-ui); font-size: var(--font-size-xs); font-weight: 600;
+      height: var(--control-h-sm); padding: 0 var(--space-2xs);
+      color: var(--text-secondary); background-color: var(--bg-input);
+      border: none; border-radius: var(--cluster-radius); cursor: pointer;
+    }
+    .format-select:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    /* Bare drag ground — session title renders inert on the ground */
+    .ground {
+      flex: 1; min-width: var(--drag-bar-min-gap); align-self: stretch;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      /* data-tauri-drag-region in the app; title inside is inert */
+    }
+    .session-title {
+      pointer-events: none; white-space: nowrap;
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+      font-size: var(--font-size-base); font-weight: 600;
+      color: var(--text-secondary); letter-spacing: 0.01em;
+      font-variant-numeric: tabular-nums;
+    }
+    .session-title .dur { color: var(--text-muted); font-weight: 400; }
+
+    /* ═════════ SCROLL REGION — summary card + transcript (Otter) ═════════ */
+    .scroll-region {
+      flex: 1; overflow-y: auto;
+      padding: var(--space-lg) var(--space-xl);
+      display: flex; flex-direction: column; gap: var(--space-lg);
+      scrollbar-width: thin;
+    }
+
+    .summary-card {
+      background: var(--bg-glass);
+      border: 1px solid var(--border-subtle);
+      border-left: 2px solid var(--accent);
+      border-radius: var(--radius-md);
+      padding: var(--space-lg);
+    }
+    .summary-head {
+      display: flex; align-items: center; gap: var(--space-sm);
+      margin-bottom: var(--space-sm);
+      font-size: var(--font-size-xs); font-weight: 600;
+      color: var(--accent); letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .summary-card ul {
+      list-style: none;
+      display: flex; flex-direction: column; gap: var(--space-2xs);
+    }
+    .summary-card li {
+      position: relative; padding-left: var(--space-lg);
+      font-size: var(--font-size-base); color: var(--text-primary); line-height: 1.55;
+    }
+    .summary-card li::before {
+      content: ""; position: absolute; left: 2px; top: 7px;
+      width: 4px; height: 4px; border-radius: var(--cluster-radius);
+      background: var(--accent);
+    }
+
+    .transcript-block {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: var(--space-lg);
+      font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; /* structural mono stack */
+      font-size: var(--font-size-sm);
+      color: var(--text-secondary);
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+    .transcript-block .ts { color: var(--text-muted); }
+    .transcript-block .sp { color: var(--accent-speaker); }
+    .transcript-block .vi { color: var(--text-muted); }
+
+    /* ═════════ Q&A — pinned bottom (Fireflies AskFred) ═════════ */
+    .qa {
+      flex: none;
+      border-top: 1px solid var(--border-subtle);
+      background: var(--bg-primary);
+      padding: var(--space-sm) var(--space-xl) var(--space-lg);
+      display: flex; flex-direction: column; gap: var(--space-sm);
+      max-height: 168px;
+    }
+    .qa-head {
+      display: flex; align-items: center; gap: var(--space-sm);
+      font-size: var(--font-size-xs); font-weight: 600;
+      color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .qa-thread { display: flex; flex-direction: column; gap: var(--space-sm); overflow-y: auto; }
+    .bubble {
+      max-width: 78%; padding: var(--space-2xs) var(--space-sm);
+      border-radius: var(--radius-md);
+      font-size: var(--font-size-base); line-height: 1.5;
+    }
+    .bubble.user {
+      align-self: flex-end;
+      background: var(--accent-glow);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      border-bottom-right-radius: var(--radius-xs);
+    }
+    .bubble.assistant {
+      align-self: flex-start;
+      background: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      border-bottom-left-radius: var(--radius-xs);
+    }
+
+    .qa-input-row { display: flex; gap: var(--space-sm); align-items: center; }
+    .qa-input-row input {
+      flex: 1; height: var(--control-h-lg);
+      font-family: var(--font-ui); font-size: var(--font-size-base);
+      color: var(--text-primary);
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--cluster-radius);
+      padding: 0 var(--space-lg);
+    }
+    .qa-input-row input::placeholder { color: var(--text-muted); }
+    .qa-input-row input:hover { border-color: var(--border-light); }
+    .send-btn {
+      width: var(--control-h-lg); height: var(--control-h-lg); flex: none;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: var(--cluster-radius);
+      /* accent-strong fill: white glyph/text needs the darker accent for AA */
+      background: var(--accent-strong); color: var(--text-on-accent);
+      transition: box-shadow var(--transition-fast);
+    }
+    /* hover: keep the fill, add a ring — never lighten a filled control */
+    .send-btn:hover { box-shadow: 0 0 0 1px var(--accent-hover); }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════ STAGE — SCR-04 Session Viewer with summary + Q&A ═══════════ -->
+  <div class="stage" role="group" aria-label="Session viewer with AI summary and Q&amp;A">
+
+    <!-- Header: back pill · inert title on bare drag ground · actions pill -->
+    <header class="bar">
+      <div class="pill">
+        <button class="icon-btn" aria-label="Back to sessions list">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="ground">
+        <span class="session-title">2026-08-26 14:30 &mdash; EN&rarr;VI <span class="dur">(42m 18s)</span></span>
+      </div>
+
+      <div class="pill" role="toolbar" aria-label="Session actions">
+        <button class="icon-btn" aria-label="Copy session content">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+        </button>
+        <select class="format-select" aria-label="Export format">
+          <option selected>.md</option>
+          <option>.txt</option>
+        </select>
+        <button class="icon-btn" aria-label="Export session">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        </button>
+        <button class="text-btn" aria-label="Summarize session with AI">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+          Summary
+        </button>
+      </div>
+    </header>
+
+    <!-- Scrollable content: AI summary above transcript (Otter pattern) -->
+    <div class="scroll-region">
+
+      <section class="summary-card" aria-label="AI summary">
+        <div class="summary-head">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M12 3l1.9 5.8L19.7 10l-5.8 1.9L12 17.7l-1.9-5.8L4.3 10l5.8-2.2z" />
+          </svg>
+          AI Summary
+        </div>
+        <ul>
+          <li>Sprint planning: 12 carried-over story points reviewed; payment integration split into two tickets (refund flow, webhook retries).</li>
+          <li>Owners assigned &mdash; Mai takes the refund flow, Tuan takes webhook retries; both due before the Thursday scope freeze.</li>
+          <li>QA needs the frozen scope by Thursday to finish regression planning before the Friday release cut.</li>
+        </ul>
+      </section>
+
+      <div class="transcript-block" role="group" aria-label="Session transcript"><span class="ts">[14:31:04]</span> <span class="sp">Speaker 1:</span> Let's start with the sprint backlog. We still have twelve story points carried over from last sprint.
+<span class="vi" lang="vi">           → Chúng ta bắt đầu với backlog của sprint nhé. Vẫn còn mười hai điểm story tồn đọng từ sprint trước.</span>
+
+<span class="ts">[14:32:47]</span> <span class="sp">Speaker 2:</span> I think the payment integration is too big — we should split it into two smaller tickets before we commit.
+<span class="vi" lang="vi">           → Tôi nghĩ phần tích hợp thanh toán quá lớn — chúng ta nên tách thành hai ticket nhỏ hơn trước khi cam kết.</span>
+
+<span class="ts">[14:34:11]</span> <span class="sp">Speaker 1:</span> Agreed. Can you own the refund flow, and Tuan takes the webhook retries?
+<span class="vi" lang="vi">           → Đồng ý. Bạn phụ trách luồng hoàn tiền, còn Tuấn nhận phần retry webhook nhé?</span>
+
+<span class="ts">[14:35:02]</span> <span class="sp">Speaker 2:</span> Works for me. Then we freeze the scope by Thursday so QA can plan regression before the Friday cut.
+<span class="vi" lang="vi">           → Tôi đồng ý. Vậy chúng ta chốt phạm vi trước thứ Năm để QA kịp lên kế hoạch regression trước đợt cắt bản thứ Sáu.</span></div>
+
+    </div>
+
+    <!-- Q&A pinned bottom (Fireflies AskFred pattern) -->
+    <section class="qa" aria-label="Ask about this session">
+      <div class="qa-head">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        Ask about this session
+      </div>
+      <div class="qa-thread">
+        <div class="bubble user">Which tickets were assigned to Tuan?</div>
+        <div class="bubble assistant">Tuan was assigned the webhook retries ticket, split out of the payment integration at 14:34. It must land before the Thursday scope freeze.</div>
+      </div>
+      <div class="qa-input-row">
+        <input type="text" placeholder="Ask about this session&hellip;" aria-label="Ask a question about this session" />
+        <button class="send-btn" aria-label="Send question">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <p class="mock-caption">AI summary above transcript (Otter) &middot; Q&amp;A thread pinned bottom (Fireflies) &middot; header keeps bare drag ground</p>
+
+</body>
+</html>

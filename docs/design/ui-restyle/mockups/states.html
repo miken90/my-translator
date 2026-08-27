@@ -1,0 +1,478 @@
+<!doctype html>
+<!--
+  States — SCR-01 auxiliary states: placeholder · compact mode · toasts (SCR-06)
+  Layout follows Mobbin refs (design-spec.md §7):
+    · pillowtalk transcribe — dark transcription screen, content dominates, chrome minimal → placeholder + compact
+    · Mercor interview bar — "bar ground is negative space" → compact mode takes it to zero chrome
+    · Google Meet / Discord call bars — header pills on bare drag ground (locked SCR-01 pattern)
+    · X Spaces REC pill — compact status rendering
+  Tokens: ../tokens.css exclusively. Structural layout px only (stage 680×400,
+  flex/positioning). Stage bg #0e0f16 = tauri.conf.json window background (kept
+  app value). Toast styling re-expresses the app's kept toast component
+  (screens.md SCR-06) with shared tokens.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SCR-01 States — ui-restyle mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <style>
+    /* ————— mockup scaffolding (not part of the design) ————— */
+    :root { color-scheme: dark; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    .visually-hidden {
+      position: absolute; width: 1px; height: 1px; overflow: hidden;
+      clip-path: inset(50%); white-space: nowrap;
+    }
+    body {
+      background: #000; /* scaffolding backdrop only */
+      font-family: var(--font-ui);
+      color: var(--text-primary);
+      display: flex; flex-direction: column; align-items: center;
+      gap: 12px; padding: 40px 16px 80px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .mock-label {
+      font-size: var(--font-size-base); color: var(--text-muted);
+      letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600;
+      margin-top: 24px;
+    }
+    .mock-label:first-of-type { margin-top: 0; }
+    .mock-caption { font-size: var(--font-size-base); color: var(--text-secondary); }
+
+    /* ————— window stage: 680×400 at real size ————— */
+    .stage {
+      width: 680px; height: 400px; flex: none;
+      background: #0e0f16; /* tauri.conf window bg (kept) */
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      overflow: hidden; position: relative;
+      display: flex; flex-direction: column;
+    }
+
+    button {
+      font-family: var(--font-ui); background: none; border: none;
+      color: var(--text-secondary); cursor: pointer; position: relative;
+    }
+    button:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+    /* mid-pill: vertical-only halo (no overlap); outermost extend outward */
+    .icon-btn::before { content: ""; position: absolute; inset: -8px 0; }
+    .pill > .icon-btn:first-child::before { left: -8px; }
+    .pill > .icon-btn:last-child::before { right: -8px; }
+
+    /* ═════════ HEADER — 42px bar, pills on bare drag ground (locked) ═════════ */
+    .bar {
+      height: var(--control-bar-height); flex: none;
+      display: flex; align-items: center;
+      gap: var(--space-sm); padding: 0 var(--space-xs);
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-subtle);
+      position: relative;
+    }
+    .pill {
+      display: flex; align-items: center; gap: var(--cluster-gap);
+      padding: var(--cluster-pad);
+      background: var(--cluster-bg);
+      border: 1px solid var(--cluster-border);
+      border-radius: var(--cluster-radius);
+      position: relative; z-index: 1; flex: none;
+    }
+    .pill .icon-btn {
+      width: var(--control-h-sm); height: var(--control-h-sm);
+      display: flex; align-items: center; justify-content: center;
+      border-radius: var(--cluster-radius);
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+    .pill .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+    /* accent-strong fill: white glyph needs the darker accent for AA;
+       hover keeps the fill and adds a ring — never lighten a filled control */
+    .btn-play { background: var(--accent-strong); color: var(--text-on-accent); }
+    .btn-play:hover { box-shadow: 0 0 0 1px var(--accent-hover); }
+    .split { display: flex; align-items: center; }
+    .split .icon-btn.chev { width: 14px; }
+    .tts-btn {
+      height: var(--control-h-sm); padding: 0 var(--space-sm);
+      display: flex; align-items: center; gap: 4px;
+      border-radius: var(--cluster-radius);
+      font-size: var(--font-size-xs); font-weight: 600; letter-spacing: 0.02em;
+    }
+    .tts-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .ground {
+      flex: 1; min-width: var(--drag-bar-min-gap); align-self: stretch;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .status {
+      pointer-events: none;
+      display: flex; align-items: center; gap: var(--space-sm);
+      font-size: var(--font-size-sm); color: var(--text-secondary);
+    }
+    .status .dot {
+      width: 7px; height: 7px; border-radius: var(--cluster-radius);
+      background: var(--text-muted); flex: none; /* idle/disconnected */
+    }
+    .status .dot.rec { background: var(--error); }
+    .status .timer { font-variant-numeric: tabular-nums; color: var(--text-muted); }
+    .close-btn:hover { background: var(--error-strong) !important; color: var(--text-on-accent) !important; }
+
+    /* ═════════ PLACEHOLDER (empty state) ═════════ */
+    .placeholder {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: var(--space-lg);
+      color: var(--text-muted);
+    }
+    .placeholder p { font-size: var(--font-size-md); }
+
+    /* ═════════ COMPACT MODE ═════════ */
+    /* Bar hidden; a 6px hover strip at the top re-reveals it. The strip is
+       invisible in the app — tinted here only so reviewers can see it. */
+    .reveal-strip {
+      height: 6px; flex: none; position: relative; z-index: var(--z-compact-reveal);
+      background: var(--accent-glow); /* mockup tint — transparent in the app */
+      border-bottom: 1px dashed var(--border-light); /* mockup indication only */
+    }
+
+    /* ═════════ TRANSCRIPT (shared body) ═════════ */
+    .transcript {
+      flex: 1; overflow: hidden;
+      padding: var(--space-lg) var(--space-xl) var(--space-3xl);
+      display: flex; flex-direction: column; gap: var(--space-md);
+    }
+    .seg {
+      background: var(--bg-glass);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: var(--space-sm) var(--space-lg);
+    }
+    .seg-meta {
+      display: flex; align-items: center; gap: var(--space-sm);
+      margin-bottom: var(--space-2xs); font-size: var(--font-size-xs);
+    }
+    .seg-speaker { color: var(--accent-speaker); font-weight: 600; }
+    .seg-time { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .seg-lang {
+      font-size: var(--font-size-xs); font-weight: 600; color: var(--text-muted);
+      border: 1px solid var(--border-subtle); border-radius: var(--radius-xs);
+      padding: 0 var(--space-2xs); line-height: 1.4;
+    }
+    .seg-original { font-size: var(--font-size-base); color: var(--text-primary); line-height: 1.55; }
+    .seg-translation {
+      margin-top: var(--space-2xs); padding-left: var(--space-sm);
+      border-left: 2px solid var(--accent-translation);
+      font-size: var(--font-size-base); color: var(--text-secondary); line-height: 1.55;
+    }
+    .provisional {
+      font-size: var(--font-size-base); font-style: italic;
+      color: var(--text-muted); padding: 0 var(--space-lg); line-height: 1.55;
+    }
+
+    /* Floating font/color controls (kept) */
+    .floating {
+      position: absolute; right: var(--space-lg); bottom: var(--space-xl);
+      z-index: var(--z-floating);
+      display: flex; align-items: center; gap: var(--space-sm);
+      background: var(--bg-glass);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: var(--space-2xs) var(--space-sm);
+      backdrop-filter: blur(8px);
+    }
+    .float-btn {
+      min-width: 24px; height: 24px; border-radius: var(--radius-sm);
+      font-size: var(--font-size-xs); font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .float-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .font-size-label { font-size: var(--font-size-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .color-dot {
+      width: 12px; height: 12px; border-radius: var(--cluster-radius);
+      border: 1px solid var(--border-light);
+    }
+    /* selected dot: inner ring — distinct from the focus outline */
+    .color-dot[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--accent-strong); }
+    /* same hit extension for floating controls (halo stops at half-gap) */
+    .float-btn::before { content: ""; position: absolute; inset: -8px 0; }
+    .color-dot::before { content: ""; position: absolute; inset: -8px -3px; }
+
+    .resize-handle {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+      cursor: ns-resize;
+    }
+    .resize-handle::after {
+      content: ""; position: absolute; left: 50%; bottom: 2px;
+      width: 28px; height: 2px; transform: translateX(-50%);
+      border-radius: var(--radius-2xs); background: var(--surface-3);
+    }
+
+    /* ═════════ TOASTS (SCR-06) — stacked bottom center ═════════ */
+    .toast-stack {
+      position: absolute; left: 50%; bottom: var(--space-2xl);
+      transform: translateX(-50%);
+      z-index: var(--z-overlay);
+      display: flex; flex-direction: column; gap: var(--space-sm);
+      align-items: center;
+    }
+    .toast {
+      display: flex; align-items: center; gap: var(--space-sm);
+      background: var(--menu-bg);
+      border: 1px solid var(--menu-border);
+      border-radius: var(--menu-radius);
+      box-shadow: var(--menu-shadow);
+      padding: var(--space-sm) var(--space-lg);
+      font-size: var(--font-size-base); color: var(--text-primary);
+      white-space: nowrap;
+      max-width: 480px; overflow: hidden; text-overflow: ellipsis;
+    }
+    .toast.success { border-left: 2px solid var(--success); }
+    .toast.success svg { color: var(--success); }
+    .toast.error { border-left: 2px solid var(--error); }
+    .toast.error svg { color: var(--error); }
+    .toast svg { flex: none; }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════ (a) PLACEHOLDER / EMPTY STATE ═══════════ -->
+  <p class="mock-label">(a) placeholder — empty, idle</p>
+  <div class="stage" role="group" aria-label="Main overlay, empty placeholder state">
+    <header class="bar">
+      <div class="pill">
+        <button class="icon-btn" aria-label="Settings (Ctrl+Comma)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+      </div>
+      <div class="pill">
+        <button class="icon-btn btn-play" aria-label="Start translating (Space)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+        </button>
+        <div class="split">
+          <button class="icon-btn" aria-label="Audio source: system audio" aria-haspopup="menu">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+          </button>
+          <button class="icon-btn chev" aria-label="Choose audio source" aria-haspopup="menu">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+          </button>
+        </div>
+        <button class="tts-btn" aria-pressed="false" aria-label="Toggle TTS narration (Ctrl+T)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><line x1="9" y1="10" x2="15" y2="10" />
+          </svg>
+          <span>TTS</span>
+        </button>
+      </div>
+      <div class="ground">
+        <div class="status"><span class="dot"></span><span>Ready</span></div>
+      </div>
+      <div class="pill">
+        <button class="icon-btn" aria-label="View saved sessions">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+        </button>
+        <button class="icon-btn" aria-label="More actions" aria-haspopup="menu">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
+          </svg>
+        </button>
+      </div>
+      <div class="pill">
+        <button class="icon-btn" aria-label="Compact mode (Ctrl+D)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
+            <line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+        </button>
+        <button class="icon-btn" aria-label="Pin on top (Ctrl+P)" aria-pressed="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 17v5" />
+            <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76z" />
+          </svg>
+        </button>
+        <button class="icon-btn" aria-label="Minimize to taskbar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        </button>
+        <button class="icon-btn close-btn" aria-label="Close">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="placeholder">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4" aria-hidden="true">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+        <line x1="12" y1="19" x2="12" y2="23" />
+        <line x1="8" y1="23" x2="16" y2="23" />
+      </svg>
+      <p>Press <span aria-hidden="true">&#9654;</span><span class="visually-hidden">Play</span> to start translating</p>
+    </div>
+    <div class="resize-handle" aria-hidden="true"></div>
+  </div>
+
+  <!-- ═══════════ (b) COMPACT MODE ═══════════ -->
+  <p class="mock-label">(b) compact mode — bar hidden, 6px top reveal strip</p>
+  <div class="stage" role="group" aria-label="Main overlay in compact mode, control bar hidden">
+    <!-- 6px hover strip re-reveals the bar; tinted + dashed here for the mockup only -->
+    <div class="reveal-strip" aria-hidden="true"></div>
+
+    <div class="transcript">
+      <article class="seg">
+        <div class="seg-meta">
+          <span class="seg-speaker">Speaker 2</span>
+          <span class="seg-time">12:45:02</span>
+          <span class="seg-lang">EN</span>
+        </div>
+        <p class="seg-original">I think the payment integration is too big &mdash; we should split it into two smaller tickets before we commit.</p>
+        <p class="seg-translation" lang="vi">Tôi nghĩ phần tích hợp thanh toán quá lớn &mdash; chúng ta nên tách thành hai ticket nhỏ hơn trước khi cam kết.</p>
+      </article>
+      <article class="seg">
+        <div class="seg-meta">
+          <span class="seg-speaker">Speaker 1</span>
+          <span class="seg-time">12:46:31</span>
+          <span class="seg-lang">EN</span>
+        </div>
+        <p class="seg-original">Agreed. Can you own the refund flow, and Tuan takes the webhook retries?</p>
+        <p class="seg-translation" lang="vi">Đồng ý. Bạn phụ trách luồng hoàn tiền, còn Tuấn nhận phần retry webhook nhé?</p>
+      </article>
+      <p class="provisional">and we should probably freeze the scope by Thursday so QA has&hellip;</p>
+    </div>
+
+    <!-- floating controls stay available in compact mode -->
+    <div class="floating" role="group" aria-label="Display quick controls">
+      <div style="display:flex;align-items:center;gap:2px">
+        <button class="float-btn" aria-label="Decrease font size">A&minus;</button>
+        <span class="font-size-label">16</span>
+        <button class="float-btn" aria-label="Increase font size">A+</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <!-- color values are existing app presets (src/index.html), kept -->
+        <button class="color-dot active" style="background:#ffffff" aria-pressed="true" aria-label="Text color white"></button>
+        <button class="color-dot" style="background:#ffd700" aria-pressed="false" aria-label="Text color yellow"></button>
+        <button class="color-dot" style="background:#00e5ff" aria-pressed="false" aria-label="Text color cyan"></button>
+      </div>
+    </div>
+    <div class="resize-handle" aria-hidden="true"></div>
+  </div>
+  <p class="mock-caption">Reveal strip is transparent in the app &mdash; tinted + dashed here for review only. Hovering it slides the bar back in (250ms).</p>
+
+  <!-- ═══════════ (c) TOASTS (SCR-06) ═══════════ -->
+  <p class="mock-label">(c) toasts — success + error, stacked bottom</p>
+  <div class="stage" role="group" aria-label="Main overlay with success and error toasts">
+    <header class="bar">
+      <div class="pill">
+        <button class="icon-btn" aria-label="Settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+      </div>
+      <div class="pill">
+        <button class="icon-btn btn-play" aria-label="Start translating">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+        </button>
+        <div class="split">
+          <button class="icon-btn" aria-label="Audio source: system audio" aria-haspopup="menu">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+          </button>
+          <button class="icon-btn chev" aria-label="Choose audio source" aria-haspopup="menu">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+          </button>
+        </div>
+        <button class="tts-btn" aria-pressed="false" aria-label="Toggle TTS narration">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><line x1="9" y1="10" x2="15" y2="10" />
+          </svg>
+          <span>TTS</span>
+        </button>
+      </div>
+      <div class="ground">
+        <div class="status"><span class="dot rec"></span><span>Reconnecting</span><span class="timer">12:47</span></div>
+      </div>
+      <div class="pill">
+        <button class="icon-btn" aria-label="View saved sessions">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+        </button>
+        <button class="icon-btn" aria-label="More actions" aria-haspopup="menu">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
+          </svg>
+        </button>
+      </div>
+      <div class="pill">
+        <button class="icon-btn" aria-label="Compact mode">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
+            <line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+        </button>
+        <button class="icon-btn" aria-label="Pin on top" aria-pressed="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 17v5" />
+            <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76z" />
+          </svg>
+        </button>
+        <button class="icon-btn" aria-label="Minimize to taskbar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        </button>
+        <button class="icon-btn close-btn" aria-label="Close">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="transcript">
+      <article class="seg">
+        <div class="seg-meta">
+          <span class="seg-speaker">Speaker 1</span>
+          <span class="seg-time">12:46:31</span>
+          <span class="seg-lang">EN</span>
+        </div>
+        <p class="seg-original">Agreed. Can you own the refund flow, and Tuan takes the webhook retries?</p>
+        <p class="seg-translation" lang="vi">Đồng ý. Bạn phụ trách luồng hoàn tiền, còn Tuấn nhận phần retry webhook nhé?</p>
+      </article>
+    </div>
+
+    <!-- SCR-06 toasts: info/success auto-dismiss 3s, error 5s -->
+    <div class="toast-stack">
+      <div class="toast success" role="status">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        Transcript copied
+      </div>
+      <div class="toast error" role="alert">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        </svg>
+        Connection lost &mdash; retrying
+      </div>
+    </div>
+
+    <div class="resize-handle" aria-hidden="true"></div>
+  </div>
+
+</body>
+</html>

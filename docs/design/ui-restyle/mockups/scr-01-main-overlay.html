@@ -1,0 +1,632 @@
+<!doctype html>
+<!--
+  SCR-01 — Main Overlay (transcript state, recording) — pilot mockup
+  Layout follows Mobbin refs (design-spec.md §7):
+    · Google Meet call bar — grouped control pills + mic chevron sub-menu + isolated danger CTA
+    · Discord call bar — floating pill clusters on bare dark ground
+    · Mercor interview bar — bar ground as negative space
+    · pillowtalk transcribe — dark transcription screen, content dominates
+    · X Spaces REC pill — status rendered as compact "● REC" element on ground
+    · Tana ⋯ menu / Perplexity ⋯ export menu — overflow menu composition
+  Tokens: ../tokens.css exclusively. Structural layout px only (stage 680×400,
+  flex/positioning). Stage bg #0e0f16 = tauri.conf.json window background (kept
+  app value, not new). Page scaffolding (black page, captions) is not part of
+  the design.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SCR-01 Main Overlay — ui-restyle mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <style>
+    /* ————— mockup scaffolding (not part of the design) ————— */
+    :root { color-scheme: dark; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000; /* scaffolding backdrop only */
+      font-family: var(--font-ui);
+      color: var(--text-primary);
+      display: flex; flex-direction: column; align-items: center;
+      gap: 12px; padding: 40px 16px 80px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .mock-label {
+      font-size: var(--font-size-base); color: var(--text-muted);
+      letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600;
+      align-self: center; margin-top: 24px;
+    }
+    .mock-caption { font-size: var(--font-size-base); color: var(--text-secondary); }
+    .mock-toggle {
+      display: flex; align-items: center; gap: 6px;
+      font-size: var(--font-size-base); color: var(--text-secondary);
+      cursor: pointer; user-select: none;
+    }
+    .mock-toggle input { accent-color: var(--accent); }
+
+    /* ————— window stage: 680×400 at real size ————— */
+    .stage {
+      width: 680px; height: 400px; flex: none;
+      background: #0e0f16; /* tauri.conf window bg (kept) */
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      overflow: hidden; position: relative;
+      display: flex; flex-direction: column;
+    }
+
+    button {
+      font-family: var(--font-ui); background: none; border: none;
+      color: var(--text-secondary); cursor: pointer; position: relative;
+    }
+    button:focus-visible, input:focus-visible {
+      outline: 2px solid var(--border-focus); outline-offset: 1px;
+    }
+    /* 44px min hit area inside the 42px bar: invisible padding extension.
+       Mid-pill buttons extend vertically only (halos must not overlap a
+       sibling); outermost pill buttons also extend outward horizontally. */
+    .icon-btn::before {
+      content: ""; position: absolute; inset: -8px 0; /* structural hit extension */
+    }
+    .pill > .icon-btn:first-child::before,
+    .pill > :first-child .icon-btn:first-child::before { left: -8px; }
+    .pill > .icon-btn:last-child::before,
+    .pill > :last-child .icon-btn:last-child::before { right: -8px; }
+
+    /* ═════════ HEADER — 42px bar, pills float on bare drag ground ═════════ */
+    .bar {
+      height: var(--control-bar-height); flex: none;
+      display: flex; align-items: center;
+      gap: var(--space-sm); padding: 0 var(--space-xs);
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-subtle);
+      position: relative; z-index: var(--z-floating);
+    }
+    /* Drag-surface visualization: faint diagonal hatch on the bare ground,
+       toggled by the checkbox above the stage. Pills paint over it → the
+       visible hatch = exactly the draggable area (data-tauri-drag-region). */
+    .hatch {
+      position: absolute; inset: 0; pointer-events: none; opacity: 0;
+      background: repeating-linear-gradient(
+        -45deg,
+        var(--border-light) 0, var(--border-light) 1px,
+        transparent 1px, transparent 7px);
+      transition: opacity var(--transition-fast);
+    }
+    body:has(#toggle-drag:checked) .hatch { opacity: 1; }
+
+    .pill {
+      display: flex; align-items: center; gap: var(--cluster-gap);
+      padding: var(--cluster-pad);
+      background: var(--cluster-bg);
+      border: 1px solid var(--cluster-border);
+      border-radius: var(--cluster-radius);
+      position: relative; z-index: 1; flex: none;
+    }
+    .pill .icon-btn {
+      width: var(--control-h-sm); height: var(--control-h-sm);
+      display: flex; align-items: center; justify-content: center;
+      border-radius: var(--cluster-radius);
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+    .pill .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .pill .icon-btn:active { background: var(--bg-active); }
+    .pill .icon-btn[aria-pressed="true"] { color: var(--accent); }
+
+    /* Pill B — transport: stop primary · mic split-button · TTS */
+    .btn-record {
+      width: var(--control-h-sm); height: var(--control-h-sm);
+      display: flex; align-items: center; justify-content: center;
+      border-radius: var(--cluster-radius);
+      background: var(--error-strong); color: var(--text-on-accent);
+    }
+    .btn-record:hover { background: var(--error-strong); } /* keep fill — never lighten a filled control */
+    /* recording pulse: expanding token-colored ring, opacity-animated only */
+    .btn-record::after {
+      content: ""; position: absolute; inset: -2px; pointer-events: none;
+      border-radius: var(--cluster-radius);
+      border: 2px solid var(--error);
+      opacity: 0; animation: rec-pulse 1.6s ease-out infinite;
+    }
+    @keyframes rec-pulse {
+      0% { opacity: 0.6; transform: scale(0.92); }
+      70% { opacity: 0; transform: scale(1.3); }
+      100% { opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .btn-record::after { animation: none; }
+      .hatch { transition: none; }
+    }
+    /* split-button: mic + chevron reads as one control (Meet mic pattern) */
+    .split { display: flex; align-items: center; }
+    .split .icon-btn.chev { width: 14px; }
+    .tts-btn {
+      height: var(--control-h-sm); padding: 0 var(--space-sm);
+      display: flex; align-items: center; gap: 4px;
+      border-radius: var(--cluster-radius);
+      font-size: var(--font-size-xs); font-weight: 600; letter-spacing: 0.02em;
+    }
+    .tts-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    /* Bare drag ground center — status renders inert on the ground */
+    .ground {
+      flex: 1; min-width: var(--drag-bar-min-gap); align-self: stretch;
+      display: flex; align-items: center; justify-content: center;
+      /* data-tauri-drag-region in the app; everything inside is inert */
+    }
+    .status {
+      pointer-events: none; /* clicks/drags fall through to the drag ground */
+      display: flex; align-items: center; gap: var(--space-sm);
+      font-size: var(--font-size-sm); color: var(--text-secondary);
+    }
+    .status .dot {
+      width: 7px; height: 7px; border-radius: var(--cluster-radius);
+      background: var(--error); flex: none;
+      animation: dot-blink 1.6s ease-in-out infinite;
+    }
+    @keyframes dot-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+    @media (prefers-reduced-motion: reduce) { .status .dot { animation: none; } }
+    .status .timer {
+      font-variant-numeric: tabular-nums; color: var(--text-muted);
+    }
+
+    .close-btn:hover { background: var(--error-strong) !important; color: var(--text-on-accent) !important; }
+
+    /* ═════════ MENUS (Tana / Perplexity / Meet chevron patterns) ═════════ */
+    .menu {
+      position: absolute; z-index: var(--z-menu);
+      min-width: 168px; padding: var(--space-2xs);
+      background: var(--menu-bg);
+      border: 1px solid var(--menu-border);
+      border-radius: var(--menu-radius);
+      box-shadow: var(--menu-shadow);
+    }
+    .menu-item {
+      width: 100%; height: var(--menu-item-h);
+      display: flex; align-items: center; gap: var(--space-sm);
+      padding: 0 var(--space-sm); border-radius: var(--radius-sm);
+      font-size: var(--font-size-base); color: var(--text-secondary);
+      text-align: left;
+    }
+    .menu-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .menu-item .grow { flex: 1; }
+    .menu-item .kbd { font-size: var(--font-size-xs); color: var(--text-muted); }
+    .menu-item.danger { color: var(--error); }
+    .menu-item.danger:hover { background: var(--bg-hover); color: var(--error); }
+    .menu-divider { height: 1px; margin: var(--space-2xs) var(--space-sm); background: var(--border-subtle); }
+    .menu-item.checked { color: var(--text-primary); }
+    .menu-item .check { width: 14px; flex: none; color: var(--accent); }
+
+    /* ═════════ BODY — transcript ═════════ */
+    .transcript {
+      flex: 1; overflow: hidden;
+      padding: var(--space-lg) var(--space-xl) var(--space-3xl);
+      display: flex; flex-direction: column; gap: var(--space-md);
+    }
+    .seg {
+      background: var(--bg-glass);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: var(--space-sm) var(--space-lg);
+    }
+    .seg-meta {
+      display: flex; align-items: center; gap: var(--space-sm);
+      margin-bottom: var(--space-2xs);
+      font-size: var(--font-size-xs);
+    }
+    .seg-speaker { color: var(--accent-speaker); font-weight: 600; }
+    .seg-time { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .seg-lang {
+      font-size: var(--font-size-xs); font-weight: 600; color: var(--text-muted);
+      border: 1px solid var(--border-subtle); border-radius: var(--radius-xs);
+      padding: 0 var(--space-2xs); line-height: 1.4;
+    }
+    .seg-low {
+      margin-left: auto; display: flex; align-items: center; gap: 4px;
+      color: var(--warning); font-size: var(--font-size-xs);
+    }
+    .seg-original { font-size: var(--font-size-base); color: var(--text-primary); line-height: 1.55; }
+    .seg-original .low-conf { text-decoration: underline dotted var(--warning); text-underline-offset: 3px; }
+    .seg-translation {
+      margin-top: var(--space-2xs); padding-left: var(--space-sm);
+      border-left: 2px solid var(--accent-translation);
+      font-size: var(--font-size-base); color: var(--text-secondary); line-height: 1.55;
+    }
+    .provisional {
+      font-size: var(--font-size-base); font-style: italic;
+      color: var(--text-muted); padding: 0 var(--space-lg); line-height: 1.55;
+    }
+
+    /* Floating font/color controls — bottom-right hover panel (kept styling) */
+    .floating {
+      position: absolute; right: var(--space-lg); bottom: var(--space-xl);
+      z-index: var(--z-floating);
+      display: flex; align-items: center; gap: var(--space-sm);
+      background: var(--bg-glass);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: var(--space-2xs) var(--space-sm);
+      backdrop-filter: blur(8px);
+    }
+    .float-btn {
+      min-width: 24px; height: 24px; border-radius: var(--radius-sm);
+      font-size: var(--font-size-xs); font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .float-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .font-size-label { font-size: var(--font-size-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .color-dot {
+      width: 12px; height: 12px; border-radius: var(--cluster-radius);
+      border: 1px solid var(--border-light);
+    }
+    /* selected dot: inner ring — distinct from the focus outline */
+    .color-dot[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--accent-strong); }
+    /* same hit extension for floating controls (halo stops at half-gap) */
+    .float-btn::before { content: ""; position: absolute; inset: -8px 0; }
+    .color-dot::before { content: ""; position: absolute; inset: -8px -3px; }
+
+    /* Resize handle — 6px bottom ns-resize strip (kept) */
+    .resize-handle {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+      cursor: ns-resize;
+    }
+    .resize-handle::after {
+      content: ""; position: absolute; left: 50%; bottom: 2px;
+      width: 28px; height: 2px; transform: translateX(-50%);
+      border-radius: var(--radius-2xs); background: var(--surface-3);
+    }
+
+    /* detail inset stage (mic source menu) */
+    .stage.inset { width: 340px; height: 170px; }
+  </style>
+</head>
+<body>
+
+  <!-- annotation toggle: visualizes the data-tauri-drag-region ground -->
+  <label class="mock-toggle" for="toggle-drag">
+    <input type="checkbox" id="toggle-drag" checked />
+    show drag surface
+  </label>
+
+  <!-- ═══════════ STAGE 1 — SCR-01 transcript state, recording ═══════════ -->
+  <div class="stage" role="group" aria-label="Main overlay, transcript state, recording">
+
+    <header class="bar">
+      <div class="hatch" aria-hidden="true"></div>
+
+      <!-- Pill A — app -->
+      <div class="pill" role="toolbar" aria-label="App controls">
+        <button class="icon-btn" aria-label="Settings (Ctrl+Comma)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Pill B — transport: stop (primary, recording) · mic split-button ▾ · TTS -->
+      <div class="pill" role="toolbar" aria-label="Transport controls">
+        <button class="icon-btn btn-record" aria-label="Stop translating (Space)" aria-pressed="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="4" y="4" width="16" height="16" rx="2" />
+          </svg>
+        </button>
+        <div class="split">
+          <button class="icon-btn" aria-label="Audio source: system audio" aria-haspopup="menu">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+          </button>
+          <button class="icon-btn chev" aria-label="Choose audio source" aria-haspopup="menu" aria-expanded="false">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+        </div>
+        <button class="tts-btn" aria-pressed="false" aria-label="Toggle TTS narration (Ctrl+T)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            <line x1="9" y1="10" x2="15" y2="10" />
+          </svg>
+          <span>TTS</span>
+        </button>
+      </div>
+
+      <!-- Bare drag ground — status is inert (pointer-events: none) -->
+      <div class="ground">
+        <div class="status">
+          <span class="dot" aria-hidden="true"></span>
+          <span>Listening</span>
+          <span class="timer">12:47</span>
+        </div>
+      </div>
+
+      <!-- Pill C — library: sessions · ⋯ overflow -->
+      <div class="pill" role="toolbar" aria-label="Library controls">
+        <button class="icon-btn" aria-label="View saved sessions">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+        </button>
+        <button class="icon-btn" aria-label="More actions" aria-haspopup="menu" aria-expanded="false">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Pill D — window: compact · pin · minimize · close -->
+      <div class="pill" role="toolbar" aria-label="Window controls">
+        <button class="icon-btn" aria-label="Compact mode (Ctrl+D)" aria-pressed="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
+            <line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+        </button>
+        <button class="icon-btn" aria-label="Pin on top (Ctrl+P)" aria-pressed="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 17v5" />
+            <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76z" />
+          </svg>
+        </button>
+        <button class="icon-btn" aria-label="Minimize to taskbar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+        <button class="icon-btn close-btn" aria-label="Close">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- transcript body: sprint-planning meeting, EN→VI -->
+    <div class="transcript">
+      <article class="seg">
+        <div class="seg-meta">
+          <span class="seg-speaker">Speaker 1</span>
+          <span class="seg-time">12:44:18</span>
+          <span class="seg-lang">EN</span>
+        </div>
+        <p class="seg-original">Let&rsquo;s start with the sprint backlog. We still have twelve story points carried over from last sprint.</p>
+        <p class="seg-translation" lang="vi">Chúng ta bắt đầu với backlog của sprint nhé. Vẫn còn mười hai điểm story tồn đọng từ sprint trước.</p>
+      </article>
+
+      <article class="seg">
+        <div class="seg-meta">
+          <span class="seg-speaker">Speaker 2</span>
+          <span class="seg-time">12:45:02</span>
+          <span class="seg-lang">EN</span>
+          <span class="seg-low" title="Low confidence segment">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            </svg>
+            low confidence
+          </span>
+        </div>
+        <p class="seg-original">I think the payment integration is too big &mdash; we should split it into <span class="low-conf">two smaller tickets</span> before we commit.</p>
+        <p class="seg-translation" lang="vi">Tôi nghĩ phần tích hợp thanh toán quá lớn &mdash; chúng ta nên tách thành hai ticket nhỏ hơn trước khi cam kết.</p>
+      </article>
+
+      <article class="seg">
+        <div class="seg-meta">
+          <span class="seg-speaker">Speaker 1</span>
+          <span class="seg-time">12:46:31</span>
+          <span class="seg-lang">EN</span>
+        </div>
+        <p class="seg-original">Agreed. Can you own the refund flow, and Tuan takes the webhook retries?</p>
+        <p class="seg-translation" lang="vi">Đồng ý. Bạn phụ trách luồng hoàn tiền, còn Tuấn nhận phần retry webhook nhé?</p>
+      </article>
+
+      <!-- provisional (non-final STT) line -->
+      <p class="provisional">and we should probably freeze the scope by Thursday so QA has&hellip;</p>
+    </div>
+
+    <!-- floating font/color controls (bottom-right) -->
+    <div class="floating" role="group" aria-label="Display quick controls">
+      <div style="display:flex;align-items:center;gap:2px">
+        <button class="float-btn" aria-label="Decrease font size">A&minus;</button>
+        <span class="font-size-label">16</span>
+        <button class="float-btn" aria-label="Increase font size">A+</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <!-- color values are existing app presets (src/index.html), kept -->
+        <button class="color-dot active" style="background:#ffffff" aria-pressed="true" aria-label="Text color white"></button>
+        <button class="color-dot" style="background:#ffd700" aria-pressed="false" aria-label="Text color yellow"></button>
+        <button class="color-dot" style="background:#00e5ff" aria-pressed="false" aria-label="Text color cyan"></button>
+      </div>
+    </div>
+
+    <div class="resize-handle" aria-hidden="true"></div>
+  </div>
+
+  <p class="mock-caption">13 &rarr; 8 controls, hatched area = drag surface</p>
+
+  <!-- ═══════════ STAGE 2 — overflow menu open ═══════════ -->
+  <p class="mock-label">overflow menu open</p>
+  <div class="stage" role="group" aria-label="Main overlay with overflow menu open">
+
+    <header class="bar">
+      <div class="hatch" aria-hidden="true"></div>
+      <div class="pill" role="toolbar" aria-label="App controls">
+        <button class="icon-btn" aria-label="Settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+      </div>
+      <div class="pill" role="toolbar" aria-label="Transport controls">
+        <button class="icon-btn btn-record" aria-label="Stop translating" aria-pressed="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2" /></svg>
+        </button>
+        <div class="split">
+          <button class="icon-btn" aria-label="Audio source: system audio" aria-haspopup="menu">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+          </button>
+          <button class="icon-btn chev" aria-label="Choose audio source" aria-haspopup="menu">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+          </button>
+        </div>
+        <button class="tts-btn" aria-pressed="false" aria-label="Toggle TTS narration">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><line x1="9" y1="10" x2="15" y2="10" />
+          </svg>
+          <span>TTS</span>
+        </button>
+      </div>
+      <div class="ground">
+        <div class="status">
+          <span class="dot" aria-hidden="true"></span><span>Listening</span><span class="timer">12:47</span>
+        </div>
+      </div>
+      <div class="pill" role="toolbar" aria-label="Library controls">
+        <button class="icon-btn" aria-label="View saved sessions">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+        </button>
+        <button class="icon-btn" aria-label="More actions" aria-haspopup="menu" aria-expanded="true" style="background: var(--bg-active); color: var(--text-primary)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
+          </svg>
+        </button>
+      </div>
+      <div class="pill" role="toolbar" aria-label="Window controls">
+        <button class="icon-btn" aria-label="Compact mode">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
+            <line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+        </button>
+        <button class="icon-btn" aria-label="Pin on top" aria-pressed="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 17v5" />
+            <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76z" />
+          </svg>
+        </button>
+        <button class="icon-btn" aria-label="Minimize to taskbar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        </button>
+        <button class="icon-btn close-btn" aria-label="Close">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ⋯ menu, anchored under pill C (Tana / Perplexity pattern) -->
+    <div class="menu" role="menu" aria-label="More actions" style="top: 44px; right: 132px;">
+      <button class="menu-item" role="menuitem">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+        <span class="grow">Copy transcript</span>
+        <span class="kbd">Ctrl+C</span>
+      </button>
+      <button class="menu-item" role="menuitem">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        <span class="grow">Export&hellip;</span>
+        <span class="kbd">Ctrl+E</span>
+      </button>
+      <div class="menu-divider" role="separator"></div>
+      <button class="menu-item danger" role="menuitem">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+        </svg>
+        <span class="grow">Clear transcript</span>
+      </button>
+    </div>
+
+    <!-- dimmed body behind the open menu -->
+    <div class="transcript" style="opacity: 0.55">
+      <article class="seg">
+        <div class="seg-meta">
+          <span class="seg-speaker">Speaker 1</span>
+          <span class="seg-time">12:46:31</span>
+          <span class="seg-lang">EN</span>
+        </div>
+        <p class="seg-original">Agreed. Can you own the refund flow, and Tuan takes the webhook retries?</p>
+        <p class="seg-translation" lang="vi">Đồng ý. Bạn phụ trách luồng hoàn tiền, còn Tuấn nhận phần retry webhook nhé?</p>
+      </article>
+      <p class="provisional">and we should probably freeze the scope by Thursday so QA has&hellip;</p>
+    </div>
+
+    <div class="resize-handle" aria-hidden="true"></div>
+  </div>
+
+  <!-- ═══════════ DETAIL INSET — mic source split-button menu ═══════════ -->
+  <p class="mock-label">detail — audio source menu (mic split-button ▾)</p>
+  <div class="stage inset" role="group" aria-label="Detail: audio source menu open">
+    <header class="bar">
+      <div class="hatch" aria-hidden="true"></div>
+      <div class="pill" role="toolbar" aria-label="Transport controls">
+        <button class="icon-btn btn-record" aria-label="Stop translating" aria-pressed="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2" /></svg>
+        </button>
+        <div class="split">
+          <button class="icon-btn" aria-label="Audio source: system audio" aria-haspopup="menu">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+          </button>
+          <button class="icon-btn chev" aria-label="Choose audio source" aria-haspopup="menu" aria-expanded="true" style="background: var(--bg-active); color: var(--text-primary)">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+          </button>
+        </div>
+        <button class="tts-btn" aria-pressed="false" aria-label="Toggle TTS narration">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><line x1="9" y1="10" x2="15" y2="10" />
+          </svg>
+          <span>TTS</span>
+        </button>
+      </div>
+      <div class="ground"></div>
+    </header>
+
+    <!-- source menu, anchored under the ▾ chevron (Meet mic-device pattern) -->
+    <div class="menu" role="menu" aria-label="Audio source" style="top: 44px; left: 12px; min-width: 188px;">
+      <button class="menu-item checked" role="menuitemradio" aria-checked="true">
+        <span class="check" aria-hidden="true">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+        </span>
+        <span class="grow">System audio</span>
+        <span class="kbd">Ctrl+1</span>
+      </button>
+      <button class="menu-item" role="menuitemradio" aria-checked="false">
+        <span class="check" aria-hidden="true"></span>
+        <span class="grow">Microphone</span>
+        <span class="kbd">Ctrl+2</span>
+      </button>
+      <button class="menu-item" role="menuitemradio" aria-checked="false">
+        <span class="check" aria-hidden="true"></span>
+        <span class="grow">Both</span>
+        <span class="kbd">Ctrl+3</span>
+      </button>
+    </div>
+  </div>
+
+</body>
+</html>
