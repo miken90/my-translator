@@ -16,10 +16,26 @@ const _openMenus = [];
  * menu never clips past the window's right edge at the 600px minimum
  * width — the CSS alone had no top/left/right, so every menu previously
  * fell back to its flex-item static position (the bar's top-left corner).
+ *
+ * Always sets an explicit `left` (never relies on `right` + `left:auto`
+ * shrink-to-fit resolution) — .control-bar is a flex container, and
+ * auto-inset resolution for an absolutely positioned flex child follows
+ * flex static-position/alignment rules rather than plain block rules, so
+ * `right:Xpx; left:auto` is not a reliable cross-engine way to right-align
+ * here. Right-align instead measures the menu's own rendered width (reset
+ * to `left:0` first so a stale offset from a previous open can't skew the
+ * shrink-to-fit measurement) and sets `left` so the menu's right edge
+ * lands flush with the trigger's right edge.
  */
 export function positionMenu(menuEl, triggers) {
     const parent = menuEl.offsetParent || menuEl.parentElement;
+    // Reset before measuring so a leftover left/right from the previous
+    // open doesn't influence this measurement.
+    menuEl.style.left = '0px';
+    menuEl.style.right = 'auto';
+
     const parentRect = parent.getBoundingClientRect();
+    const menuWidth = menuEl.getBoundingClientRect().width;
     const rects = triggers.map((t) => t.getBoundingClientRect());
     const anchorLeft = Math.min(...rects.map((r) => r.left));
     const anchorRight = Math.max(...rects.map((r) => r.right));
@@ -29,13 +45,10 @@ export function positionMenu(menuEl, triggers) {
     menuEl.style.top = `${anchorBottom - parentRect.top + gap}px`;
 
     const barCenterX = parentRect.left + parentRect.width / 2;
-    if (anchorLeft >= barCenterX) {
-        menuEl.style.right = `${Math.max(parentRect.right - anchorRight, 0)}px`;
-        menuEl.style.left = 'auto';
-    } else {
-        menuEl.style.left = `${Math.max(anchorLeft - parentRect.left, 0)}px`;
-        menuEl.style.right = 'auto';
-    }
+    const left = anchorLeft >= barCenterX
+        ? (anchorRight - parentRect.left) - menuWidth // right-align: menu's right edge = trigger's right edge
+        : anchorLeft - parentRect.left;                // left-align: menu's left edge = trigger's left edge
+    menuEl.style.left = `${Math.max(left, 0)}px`;
 }
 
 /**
