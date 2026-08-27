@@ -29,8 +29,11 @@ export class CardRenderer {
     /**
      * @param {Array} segments - TranscriptUI.segments (already trimmed)
      * @param {{text: string, speaker: ?string, language: ?string}} provisional
+     * @param {?string} targetLang - translation language code (one-way mode
+     *   only), applied as the seg-translation div's `lang` attribute
      */
-    render(segments, provisional) {
+    render(segments, provisional, targetLang = null) {
+        this._targetLang = targetLang;
         const seenIds = new Set();
         let lastRenderedSpeaker = null;
         let lastRenderedLang = null;
@@ -99,6 +102,7 @@ export class CardRenderer {
             showSpeaker ? seg.speaker : null,
             showLang ? seg.language : null,
             seg.createdAt,
+            this._targetLang,
         ]);
         if (cardEl.dataset.sig === sig) return;
         cardEl.dataset.sig = sig;
@@ -123,9 +127,10 @@ export class CardRenderer {
 
         if (seg.status === 'translated') {
             const confidenceClass = lowConfidence ? ' low-confidence' : '';
+            const langAttr = this._targetLang ? ` lang="${this._targetLang}"` : '';
             return headerHtml +
                 `<div class="seg-original">${this._esc(seg.original || '')}</div>` +
-                `<div class="seg-translation${confidenceClass}">${this._esc(seg.translation)}</div>`;
+                `<div class="seg-translation${confidenceClass}"${langAttr}>${this._esc(seg.translation)}</div>`;
         }
 
         // status === 'original' (the only other visible case)

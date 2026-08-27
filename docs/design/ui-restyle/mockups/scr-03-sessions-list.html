@@ -1,0 +1,343 @@
+<!doctype html>
+<!--
+  SCR-03 — Sessions List — pilot mockup
+  Layout follows Mobbin refs (design-spec.md §7):
+    · Hotjar recordings list — compact rows, right-aligned duration/metadata
+    · Amplitude session replays — time/length column alignment
+    · Discord call bar — header pills float on bare drag ground (locked SCR-01 pattern)
+  Tokens: ../tokens.css exclusively. Structural layout px only (stage 680×400,
+  flex/positioning). Stage bg #0e0f16 = tauri.conf.json window background (kept
+  app value). Header keeps bare drag ground per design-spec §5 flow requirement.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SCR-03 Sessions List — ui-restyle mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <style>
+    /* ————— mockup scaffolding (not part of the design) ————— */
+    :root { color-scheme: dark; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000; /* scaffolding backdrop only */
+      font-family: var(--font-ui);
+      color: var(--text-primary);
+      display: flex; flex-direction: column; align-items: center;
+      gap: 12px; padding: 40px 16px 80px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .mock-label {
+      font-size: var(--font-size-base); color: var(--text-muted);
+      letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600;
+      margin-top: 24px;
+    }
+    .mock-caption { font-size: var(--font-size-base); color: var(--text-secondary); }
+
+    /* ————— window stage: 680×400 at real size ————— */
+    .stage {
+      width: 680px; height: 400px; flex: none;
+      background: #0e0f16; /* tauri.conf window bg (kept) */
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      overflow: hidden; position: relative;
+      display: flex; flex-direction: column;
+    }
+
+    button {
+      font-family: var(--font-ui); background: none; border: none;
+      color: var(--text-secondary); cursor: pointer; position: relative;
+    }
+    button:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+    /* 44px min hit area inside the 42px bar: invisible padding extension.
+       Mid-pill buttons extend vertically only (no overlapping halos);
+       outermost pill buttons also extend outward horizontally. */
+    .icon-btn::before { content: ""; position: absolute; inset: -8px 0; }
+    .pill > .icon-btn:first-child::before { left: -8px; }
+    .pill > .icon-btn:last-child::before { right: -8px; }
+
+    /* ═════════ HEADER — 42px bar, pills on bare drag ground (locked) ═════════ */
+    .bar {
+      height: var(--control-bar-height); flex: none;
+      display: flex; align-items: center;
+      gap: var(--space-sm); padding: 0 var(--space-xs);
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-subtle);
+      position: relative;
+    }
+    .pill {
+      display: flex; align-items: center; gap: var(--cluster-gap);
+      padding: var(--cluster-pad);
+      background: var(--cluster-bg);
+      border: 1px solid var(--cluster-border);
+      border-radius: var(--cluster-radius);
+      position: relative; z-index: 1; flex: none;
+    }
+    .pill .icon-btn {
+      width: var(--control-h-sm); height: var(--control-h-sm);
+      display: flex; align-items: center; justify-content: center;
+      border-radius: var(--cluster-radius);
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+    .pill .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .pill .icon-btn:active { background: var(--bg-active); }
+    /* Bare drag ground center — title renders inert on the ground */
+    .ground {
+      flex: 1; min-width: var(--drag-bar-min-gap); align-self: stretch;
+      display: flex; align-items: center; justify-content: center;
+      /* data-tauri-drag-region in the app; title inside is inert */
+    }
+    .view-title {
+      pointer-events: none;
+      font-size: var(--font-size-base); font-weight: 600;
+      color: var(--text-secondary); letter-spacing: 0.02em;
+    }
+
+    /* ═════════ SESSION ROWS (Hotjar / Amplitude patterns) ═════════ */
+    .list {
+      flex: 1; overflow-y: auto;
+      padding: var(--space-lg) var(--space-xl);
+      display: flex; flex-direction: column; gap: var(--space-2xs);
+      scrollbar-width: thin;
+    }
+    .list li { list-style: none; }
+    .row {
+      width: 100%;
+      display: flex; align-items: center; gap: var(--space-lg);
+      padding: var(--space-sm) var(--space-lg);
+      background: var(--bg-glass);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      text-align: left;
+      transition: background var(--transition-fast), border-color var(--transition-fast);
+      min-height: 44px; /* full-height touch target — no hit extension needed */
+    }
+    .row:hover, .row.hover {
+      background: var(--bg-hover);
+      border-color: var(--border-light);
+    }
+    .row:active { background: var(--bg-active); }
+    .row-icon { flex: none; color: var(--text-muted); display: flex; }
+    .row:hover .row-icon, .row.hover .row-icon { color: var(--accent); }
+    .row-when {
+      flex: 1; min-width: 0;
+      display: flex; flex-direction: column; gap: 1px;
+    }
+    .row-date {
+      font-size: var(--font-size-base); font-weight: 500;
+      color: var(--text-primary); font-variant-numeric: tabular-nums;
+    }
+    .row-time { font-size: var(--font-size-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .row-badge {
+      flex: none;
+      font-size: var(--font-size-xs); font-weight: 600;
+      color: var(--accent-alt);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xs);
+      padding: 0 var(--space-2xs); line-height: 1.6;
+    }
+    /* right-aligned metadata columns (Amplitude time/length alignment) */
+    .row-duration {
+      flex: none; width: 64px; text-align: right;
+      font-size: var(--font-size-base); color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+    .row-size {
+      flex: none; width: 56px; text-align: right;
+      font-size: var(--font-size-xs); color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .row-chev { flex: none; color: var(--text-muted); display: flex; }
+
+    /* ═════════ EMPTY STATE ═════════ */
+    .empty {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: var(--space-sm);
+      color: var(--text-muted);
+    }
+    .empty p { font-size: var(--font-size-md); }
+    .empty .sub { font-size: var(--font-size-base); color: var(--text-muted); }
+    .stage.inset { width: 460px; height: 220px; }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════ STAGE 1 — sessions list, loaded (5 rows) ═══════════ -->
+  <div class="stage" role="group" aria-label="Sessions list, five saved sessions">
+
+    <!-- Header: back pill · inert "Sessions" title on drag ground · folder pill -->
+    <header class="bar">
+      <div class="pill">
+        <button class="icon-btn" aria-label="Back to overlay">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="ground">
+        <span class="view-title">Sessions</span>
+      </div>
+
+      <div class="pill">
+        <button class="icon-btn" aria-label="Open saved transcripts folder">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Compact rows: date+time · lang badge · duration · size (Hotjar/Amplitude) -->
+    <ul class="list" role="list" aria-label="Saved sessions">
+
+      <!-- hover state forced on the first row for the mockup -->
+      <li><button class="row hover" aria-label="Open session 2026-08-26 14:30, English to Vietnamese, 42 minutes, 156 kilobytes">
+        <span class="row-icon" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+        </span>
+        <span class="row-when">
+          <span class="row-date">2026-08-26</span>
+          <span class="row-time">14:30</span>
+        </span>
+        <span class="row-badge">EN&rarr;VI</span>
+        <span class="row-duration">42m 18s</span>
+        <span class="row-size">156 KB</span>
+        <span class="row-chev" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </span>
+      </button></li>
+
+      <li><button class="row" aria-label="Open session 2026-08-25 09:00, English to Vietnamese, 1 hour 3 minutes, 231 kilobytes">
+        <span class="row-icon" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+        </span>
+        <span class="row-when">
+          <span class="row-date">2026-08-25</span>
+          <span class="row-time">09:00</span>
+        </span>
+        <span class="row-badge">EN&rarr;VI</span>
+        <span class="row-duration">1h 03m</span>
+        <span class="row-size">231 KB</span>
+        <span class="row-chev" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </span>
+      </button></li>
+
+      <li><button class="row" aria-label="Open session 2026-08-22 16:15, English to Vietnamese, 18 minutes, 64 kilobytes">
+        <span class="row-icon" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+        </span>
+        <span class="row-when">
+          <span class="row-date">2026-08-22</span>
+          <span class="row-time">16:15</span>
+        </span>
+        <span class="row-badge">EN&rarr;VI</span>
+        <span class="row-duration">18m 05s</span>
+        <span class="row-size">64 KB</span>
+        <span class="row-chev" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </span>
+      </button></li>
+
+      <li><button class="row" aria-label="Open session 2026-08-20 10:30, English to Vietnamese, 55 minutes, 198 kilobytes">
+        <span class="row-icon" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+        </span>
+        <span class="row-when">
+          <span class="row-date">2026-08-20</span>
+          <span class="row-time">10:30</span>
+        </span>
+        <span class="row-badge">EN&rarr;VI</span>
+        <span class="row-duration">55m 47s</span>
+        <span class="row-size">198 KB</span>
+        <span class="row-chev" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </span>
+      </button></li>
+
+      <li><button class="row" aria-label="Open session 2026-08-18 13:00, English to Vietnamese, 27 minutes, 92 kilobytes">
+        <span class="row-icon" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+        </span>
+        <span class="row-when">
+          <span class="row-date">2026-08-18</span>
+          <span class="row-time">13:00</span>
+        </span>
+        <span class="row-badge">EN&rarr;VI</span>
+        <span class="row-duration">27m 32s</span>
+        <span class="row-size">92 KB</span>
+        <span class="row-chev" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </span>
+      </button></li>
+
+    </ul>
+  </div>
+
+  <p class="mock-caption">First row shows hover state &middot; duration + size right-aligned (Amplitude columns)</p>
+
+  <!-- ═══════════ STAGE 2 — empty state ═══════════ -->
+  <p class="mock-label">empty state</p>
+  <div class="stage inset" role="group" aria-label="Sessions list, empty state">
+    <header class="bar">
+      <div class="pill">
+        <button class="icon-btn" aria-label="Back to overlay">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+        </button>
+      </div>
+      <div class="ground">
+        <span class="view-title">Sessions</span>
+      </div>
+      <div class="pill">
+        <button class="icon-btn" aria-label="Open saved transcripts folder">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
+        </button>
+      </div>
+    </header>
+    <div class="empty">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4" aria-hidden="true">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+      </svg>
+      <p>No saved sessions</p>
+      <p class="sub">Finished recordings are saved here automatically.</p>
+    </div>
+  </div>
+
+</body>
+</html>

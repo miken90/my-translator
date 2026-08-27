@@ -22,6 +22,11 @@ export class TranscriptUI {
         this.contentEl = null;
         this.maxChars = 1200;
         this.fontSize = 16;
+        // Language code of the rendered translation text (one-way mode only —
+        // two-way mode's direction varies per segment, so this stays null and
+        // no lang attribute is set). Used for the seg-translation `lang` attr
+        // (design-spec.md §6 a11y note).
+        this.targetLang = null;
         this._nextSegId = 1; // Monotonic counter for unique segment IDs
 
         // Segments: each has { id, original, translation, status, speaker, language, confidence }
@@ -56,7 +61,7 @@ export class TranscriptUI {
     /**
      * Update display settings
      */
-    configure({ maxLines, fontSize, fontColor }) {
+    configure({ maxLines, fontSize, fontColor, targetLang }) {
         if (maxLines !== undefined) this.maxChars = maxLines * 160;
         if (fontSize !== undefined) {
             this.fontSize = fontSize;
@@ -66,6 +71,7 @@ export class TranscriptUI {
             this.fontColor = fontColor;
             this.container.style.setProperty('--transcript-font-color', fontColor);
         }
+        if (targetLang !== undefined) this.targetLang = targetLang;
     }
 
     /**
@@ -198,7 +204,7 @@ export class TranscriptUI {
           <line x1="8" y1="23" x2="16" y2="23"/>
         </svg>
         <p>Press ▶ to start translating</p>
-        <p class="shortcut-hint">⌘ Enter</p>
+        <p class="shortcut-hint">Ctrl+Enter</p>
       </div>
     `;
         this.segments = [];
@@ -211,6 +217,21 @@ export class TranscriptUI {
         this.lastConfidence = null;
         this.contentEl = null;
         this._resetCardTracking();
+    }
+
+    /**
+     * Retire the transient "Listening..." indicator on stop(). Unlike
+     * _removeListening() (fired only once real content arrives), this is
+     * the stop-path cleanup: with segments already showing, only the
+     * indicator goes; with none, the view drops to the placeholder state
+     * (nothing was ever transcribed, so there is nothing to preserve).
+     */
+    stopListening() {
+        if (this.hasSegments()) {
+            this._removeListening();
+        } else {
+            this.showPlaceholder();
+        }
     }
 
     /**
@@ -424,7 +445,7 @@ export class TranscriptUI {
             text: this.provisionalText,
             speaker: this.provisionalSpeaker,
             language: this.provisionalLanguage,
-        });
+        }, this.targetLang);
         this._smartScroll(this.container.parentElement || this.container);
     }
 

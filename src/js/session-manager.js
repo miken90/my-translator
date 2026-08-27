@@ -7,6 +7,8 @@
  * clearSession() is only called here after a successful final save.
  */
 
+import { closeAllHeaderMenus } from './header-menus.js';
+
 const SUMMARIZE_BTN_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
 
 export class SessionManager {
@@ -79,6 +81,7 @@ export class SessionManager {
         document.getElementById('btn-export')?.addEventListener('click', () => {
             const format = this.settingsManager.get().export_format || 'md';
             this.exportSession(format);
+            closeAllHeaderMenus();
         });
 
         // Open saved transcripts folder (kept for Finder access)
@@ -101,6 +104,16 @@ export class SessionManager {
         });
         document.getElementById('btn-recovery-discard')?.addEventListener('click', () => {
             this.discardPendingTranscript();
+        });
+        // Esc / scrim click = safe dismiss (closes the dialog without
+        // deleting; the orphan transcript is offered again on next boot).
+        document.getElementById('recovery-dialog')?.addEventListener('click', (e) => {
+            if (e.target.id === 'recovery-dialog') this._hideRecoveryDialog();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            const dialog = document.getElementById('recovery-dialog');
+            if (dialog && dialog.style.display !== 'none') this._hideRecoveryDialog();
         });
 
         // Q&A

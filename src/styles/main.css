@@ -52,6 +52,27 @@
   --warning: #eec158;
   --error: #f28b8b;
   --error-strong: #e85c5c;
+  /* Fill color for accent-filled buttons: white 12px text on --accent is
+     ~2.9:1; --accent-strong lifts it to ≥4.5:1. Hover keeps the fill and
+     adds an --accent-hover ring — never lighten a filled control. */
+  --accent-strong: #4a63a8;
+
+  /* Header pill clusters (Meet/Discord call-bar pattern). Clusters float on
+     a bare drag bar; the gap between them IS the drag surface, so cluster bg
+     must read as "object", bar bg as "ground". */
+  --cluster-bg: rgba(30, 32, 46, 0.85);
+  --cluster-border: rgba(255, 255, 255, 0.10);
+  --cluster-radius: 999px;
+  --cluster-gap: 2px;
+  --cluster-pad: 3px;
+  --drag-bar-min-gap: 48px;
+
+  /* Overflow / source menus (Tana/Perplexity pattern) */
+  --menu-bg: rgba(24, 25, 34, 0.97);
+  --menu-border: rgba(255, 255, 255, 0.12);
+  --menu-radius: 10px;
+  --menu-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --menu-item-h: 30px;
 
   /* Sizing */
   --control-bar-height: 42px;
@@ -89,6 +110,8 @@
   --z-floating: 10;
   --z-compact-reveal: 99;
   --z-compact-catch: 100;
+  /* Menus sit above floating pills, below the modal overlay */
+  --z-menu: 500;
   --z-overlay: 1000;
 
   /* Control heights — three, not seven. Concept A unifies the Settings
@@ -147,7 +170,6 @@ body {
    instead, so an ancestor's clip box does not cut it off. */
 #btn-close:focus-visible,
 #btn-settings:focus-visible,
-.session-copy-btn:focus-visible,
 .qa-input-row input:focus-visible,
 .float-btn:focus-visible,
 .color-dot:focus-visible {
@@ -208,9 +230,19 @@ textarea:disabled {
    Done per-child rather than by giving the host a stacking context: a stacking
    context on #overlay-view risks making it a backdrop root, which would leave
    ::after's backdrop-filter with nothing behind it to sample. */
+/* z-index: var(--z-floating), not the bare 1 that only needs to clear
+   #overlay-view::after — #transcript-container (below) is a SIBLING that
+   also sits at z-index:1 to clear the same ::after layer. Tied z-index
+   falls back to DOM order, and #transcript-container comes later, so it
+   was painting on top of #drag-region and everything inside it — including
+   the header's dropdown menus (var(--z-menu):500 only ranks the menu
+   within #drag-region's own local stacking context; it can't out-rank an
+   outer sibling). --z-floating already means "floating chrome above the
+   transcript ground" for .pill/.floating-controls, so it's the correct
+   tier for the header container itself too. */
 #drag-region {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-floating);
   flex-shrink: 0;
   height: var(--control-bar-height);
   border-bottom: 1px solid var(--border-subtle);
@@ -221,11 +253,13 @@ textarea:disabled {
   display: flex;
   align-items: center;
   height: 100%;
-  padding: 0 var(--space-sm);
-  gap: var(--space-xs);
+  padding: 0 var(--space-2xs);
+  gap: var(--space-sm);
+  position: relative;
 }
 
-/* Icon Buttons */
+/* Icon Buttons — base (also used outside the header: settings/sessions
+   back buttons, key-visibility toggles, QA ask button, etc.) */
 .icon-btn {
   display: flex;
   align-items: center;
@@ -241,6 +275,7 @@ textarea:disabled {
   transition: all var(--transition-fast);
   padding: 0 var(--space-2xs);
   gap: 1px;
+  position: relative;
 }
 
 .icon-btn:hover {
@@ -258,8 +293,8 @@ textarea:disabled {
 }
 
 .close-btn:hover {
-  background: rgba(242, 139, 139, 0.2);
-  color: var(--error);
+  background: var(--error-strong);
+  color: var(--text-on-accent);
 }
 
 /* Button labels */
@@ -273,84 +308,160 @@ textarea:disabled {
   white-space: nowrap;
 }
 
-/* Toolbar group */
-.toolbar-group {
+/* ─── Header pill clusters (Meet/Discord call-bar pattern) ─────────────
+   Controls float in pills on a bare, drag-enabled bar ground; the gaps
+   between/around pills and the ground itself carry data-tauri-drag-region. */
+.pill {
   display: flex;
   align-items: center;
-  gap: var(--space-3xs);
+  gap: var(--cluster-gap);
+  padding: var(--cluster-pad);
+  background: var(--cluster-bg);
+  border: 1px solid var(--cluster-border);
+  border-radius: var(--cluster-radius);
+  position: relative;
+  z-index: var(--z-floating);
+  flex: none;
 }
 
-/* Toolbar zones — group related controls, never shrink (status area absorbs
-   width changes so window controls stay reachable at narrow widths) */
-.toolbar-zone {
+.pill .icon-btn {
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  min-width: 0;
+  flex-direction: row;
+  border-radius: var(--cluster-radius);
+  padding: 0;
+}
+
+.pill .icon-btn[aria-pressed="true"],
+.pill .icon-btn[aria-expanded="true"] {
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.pill .close-btn:hover {
+  background: var(--error-strong);
+  color: var(--text-on-accent);
+}
+
+/* Split-button (mic + chevron) — reads as one control (Meet mic pattern) */
+.split {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  flex-shrink: 0;
 }
 
-.toolbar-zone-transcript {
-  gap: var(--space-sm);
+.split .icon-btn.chev {
+  width: 16px;
 }
 
-.toolbar-divider {
-  width: 1px;
-  height: 16px;
-  background: var(--border-light);
-  flex-shrink: 0;
+/* Start/Stop transport button — filled, isolated emphasis */
+.btn-record {
+  background: var(--accent-strong);
+  color: var(--text-on-accent);
 }
 
-.btn-clear-danger:hover {
-  background: rgba(242, 139, 139, 0.2);
-  color: var(--error);
+.btn-record:hover {
+  background: var(--accent-strong);
+  box-shadow: 0 0 0 1px var(--accent-hover);
 }
 
-/* TTS Action Button — prominent, next to Start */
-.tts-action-btn {
+.btn-record.recording {
+  background: var(--error-strong);
+}
+
+.btn-record.recording:hover {
+  background: var(--error-strong);
+  box-shadow: 0 0 0 1px var(--error);
+}
+
+/* Recording pulse: expanding token-colored ring, opacity-animated only */
+.btn-record.recording::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  pointer-events: none;
+  border-radius: var(--cluster-radius);
+  border: 2px solid var(--error);
+  opacity: 0;
+  animation: rec-pulse 1.6s ease-out infinite;
+}
+
+@keyframes rec-pulse {
+  0% { opacity: 0.6; transform: scale(0.92); }
+  70% { opacity: 0; transform: scale(1.3); }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-record.recording::after {
+    animation: none;
+  }
+}
+
+.tts-btn {
+  height: var(--control-h-sm);
+  padding: 0 var(--space-sm);
   display: flex;
   align-items: center;
-  gap: var(--space-2xs);
-  height: var(--control-h-md);
-  padding: 0 var(--space-md);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  gap: 4px;
+  border: none;
+  border-radius: var(--cluster-radius);
+  background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all var(--transition-fast);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
-.tts-action-btn:hover {
-  background: var(--surface-3);
-  border-color: rgba(255, 255, 255, 0.2);
+.tts-btn:hover {
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
-.tts-action-btn:active {
+.tts-btn:active {
   transform: scale(0.95);
 }
 
-.tts-action-btn.active {
+.tts-btn[aria-pressed="true"] {
   background: var(--accent-glow);
-  border-color: var(--accent);
   color: var(--accent);
 }
 
-.tts-action-btn.active:hover {
+.tts-btn[aria-pressed="true"]:hover {
   background: rgba(122, 151, 224, 0.25);
 }
 
-/* Byte-exact override: the shared button:disabled rule below uses 0.4;
-   this control shipped at 0.35 and that value is kept rather than nudged. */
-.tts-action-btn:disabled {
+.tts-btn:disabled {
   opacity: 0.35;
 }
 
 .tts-label {
   font-weight: 600;
   letter-spacing: 0.5px;
+}
+
+/* Bare drag ground — center of the bar; status renders inert on top of it */
+.ground {
+  flex: 1;
+  min-width: var(--drag-bar-min-gap);
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.view-title {
+  pointer-events: none;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Pin / Compact Button Active State */
@@ -368,6 +479,81 @@ textarea:disabled {
 #btn-minimize:hover {
   background: rgba(236, 204, 99, 0.15);
   color: var(--accent-minimize-hover);
+}
+
+/* ─── Header menus (Tana/Perplexity overflow + Meet mic-chevron source) ─── */
+.menu {
+  position: absolute;
+  z-index: var(--z-menu);
+  min-width: 168px;
+  padding: var(--space-2xs);
+  background: var(--menu-bg);
+  border: 1px solid var(--menu-border);
+  border-radius: var(--menu-radius);
+  box-shadow: var(--menu-shadow);
+}
+
+.menu[hidden] {
+  display: none;
+}
+
+.menu-item {
+  width: 100%;
+  height: var(--menu-item-h);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0 var(--space-sm);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: var(--font-size-base);
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.menu-item .grow {
+  flex: 1;
+}
+
+.menu-item .kbd {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.menu-item.danger {
+  color: var(--error);
+}
+
+.menu-item.danger:hover,
+.menu-item.danger:focus-visible {
+  background: rgba(242, 139, 139, 0.15);
+  color: var(--error);
+}
+
+.menu-divider {
+  height: 1px;
+  margin: var(--space-2xs) var(--space-sm);
+  background: var(--border-subtle);
+}
+
+.menu-item .check {
+  width: 14px;
+  flex: none;
+  color: var(--accent);
+  display: flex;
+}
+
+.menu-item[aria-checked="true"] {
+  color: var(--text-primary);
 }
 
 /* ─── Compact Mode ─────────────────────────────────────── */
@@ -403,15 +589,14 @@ textarea:disabled {
   padding-top: var(--space-2xs);
 }
 
-/* Status Area */
+/* Status Area — rendered inert (pointer-events:none) on the bare drag
+   ground, so clicks/drags always fall through to .ground beneath it. */
 .status-area {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  margin-left: var(--space-2xs);
-  flex: 1;
+  gap: var(--space-sm);
   min-width: 0;
-  overflow: hidden;
+  max-width: 100%;
   pointer-events: none;
 }
 
@@ -485,88 +670,15 @@ textarea:disabled {
   flex-shrink: 0;
 }
 
-/* Source Controls */
-.source-controls {
-  display: flex;
-  gap: var(--space-3xs);
-  background: var(--surface-1);
-  border-radius: var(--radius-sm);
-  padding: var(--space-3xs);
+/* Source menu (#menu-source) — the 3 source items are the original
+   #btn-source-* buttons, restyled as menuitemradio rows inside the mic
+   split-button's popover. The check glyph only paints when selected. */
+.menu-item .check svg {
+  opacity: 0;
 }
 
-.source-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  min-width: 30px;
-  height: var(--control-h-sm);
-  border: none;
-  border-radius: var(--radius-xs);
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  padding: 0 var(--space-xs);
-  gap: 1px;
-}
-
-.source-btn:hover {
-  color: var(--text-secondary);
-}
-
-.source-btn:active {
-  transform: scale(0.9);
-}
-
-.source-btn.active {
-  background: var(--accent-glow);
-  color: var(--accent);
-}
-
-/* Action Button (Start/Stop) */
-.action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: var(--control-h-md);
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--text-on-accent);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.action-btn:hover {
-  background: var(--accent-hover);
-  box-shadow: 0 0 12px var(--accent-glow);
-}
-
-.action-btn:active {
-  transform: scale(0.92);
-}
-
-.action-btn.recording {
-  background: var(--error);
-  animation: recordPulse 2s infinite;
-}
-
-.action-btn.recording:hover {
-  background: var(--error-strong);
-}
-
-@keyframes recordPulse {
-
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(242, 139, 139, 0.3);
-  }
-
-  50% {
-    box-shadow: 0 0 10px 3px rgba(242, 139, 139, 0.2);
-  }
+.menu-item[aria-checked="true"] .check svg {
+  opacity: 1;
 }
 
 /* ─── Transcript Container ─────────────────────────────── */
@@ -1000,31 +1112,33 @@ textarea:disabled {
 /* ─── Settings Tabs ───────────────────────────────────── */
 .settings-tabs {
   display: flex;
-  gap: 0;
-  border-bottom: 1px solid var(--border-subtle);
+  gap: var(--space-2xs);
   margin-bottom: var(--space-xl);
 }
 
 .settings-tab {
   flex: 1;
-  padding: var(--space-sm) 0;
+  height: var(--control-h-md);
+  padding: 0 var(--space-lg);
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-radius: var(--cluster-radius);
   color: var(--text-muted);
   font-size: var(--font-size-base);
   font-weight: 500;
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
 .settings-tab:hover {
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
 .settings-tab.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+  background: var(--surface-3);
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .settings-tab-content {
@@ -1452,7 +1566,8 @@ input[type="range"]::-webkit-slider-thumb:hover {
   padding: var(--space-md) var(--space-xl);
   border: none;
   border-radius: var(--radius-sm);
-  background: var(--accent);
+  /* accent-strong fill: 14px white text needs the darker accent for AA */
+  background: var(--accent-strong);
   color: var(--text-on-accent);
   font-family: inherit;
   font-size: var(--font-size-md);
@@ -1461,9 +1576,9 @@ input[type="range"]::-webkit-slider-thumb:hover {
   transition: all var(--transition-fast);
 }
 
+/* Hover: keep the fill, add a ring — never lighten a filled control */
 .primary-btn:hover {
-  background: var(--accent-hover);
-  box-shadow: 0 4px 12px rgba(122, 151, 224, 0.25);
+  box-shadow: 0 0 0 1px var(--accent-hover), 0 4px 12px rgba(122, 151, 224, 0.25);
 }
 
 .primary-btn:active {
@@ -1658,14 +1773,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
   background: rgba(20, 20, 30, 0.4);
 }
 
-.sessions-title {
-  flex: 1;
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: 0.01em;
-}
-
 .sessions-body {
   flex: 1;
   overflow-y: auto;
@@ -1775,37 +1882,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
 
-.session-viewer-title-text {
-  flex: 1;
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.session-copy-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2xs);
-  height: var(--control-h-sm);
-  padding: 0 var(--space-sm);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  flex-shrink: 0;
-}
-
-.session-copy-btn:hover {
-  background: var(--surface-3);
-  color: var(--text-primary);
-}
-
 /* Single scroll region for the viewer: summary (top) + transcript (below).
    Header and QA section stay pinned outside this container. No
    position:sticky — backdrop-filter ancestors glitch it in WebView2. */
@@ -1873,15 +1949,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .session-summary-block p {
   margin: 0;
   white-space: pre-wrap;
-}
-
-/* opacity/cursor come from the shared button:disabled rule. This rule stays:
-   the shared rule alone does not stop the :hover background/color change
-   below, which would make a disabled Copy/Export/Summary button light up
-   under the cursor. */
-.session-copy-btn:disabled:hover {
-  background: var(--surface-2);
-  color: var(--text-secondary);
 }
 
 /* Export format select (overlay toolbar + session viewer) */

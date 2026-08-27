@@ -1,0 +1,311 @@
+<!doctype html>
+<!--
+  SCR-05 — Crash Recovery Dialog (modal over SCR-01) — pilot mockup
+  Layout follows Mobbin refs (design-spec.md §7):
+    · Google Meet call bar / Discord call bar — underlying SCR-01 header pills on bare drag ground (locked pattern)
+    · pillowtalk transcribe — dark content layer under the scrim
+  Modal itself keeps the app's existing modal-card styling re-expressed with
+  shared tokens (design-spec §5: "cards, inputs, modal: styling unchanged").
+  Tokens: ../tokens.css exclusively. Structural layout px only (stage 680×400,
+  flex/positioning). Stage bg #0e0f16 = tauri.conf.json window background (kept
+  app value). Scrim = 50% black per guidelines (40–60% range).
+  Dismiss affordances: Esc key and scrim click both trigger the safe action
+  (keep the orphan transcript, close nothing destructive) — noted in caption.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SCR-05 Recovery Dialog — ui-restyle mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <style>
+    /* ————— mockup scaffolding (not part of the design) ————— */
+    :root { color-scheme: dark; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000; /* scaffolding backdrop only */
+      font-family: var(--font-ui);
+      color: var(--text-primary);
+      display: flex; flex-direction: column; align-items: center;
+      gap: 12px; padding: 40px 16px 80px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .mock-caption { font-size: var(--font-size-base); color: var(--text-secondary); text-align: center; line-height: 1.6; }
+
+    /* ————— window stage: 680×400 at real size ————— */
+    .stage {
+      width: 680px; height: 400px; flex: none;
+      background: #0e0f16; /* tauri.conf window bg (kept) */
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      overflow: hidden; position: relative;
+      display: flex; flex-direction: column;
+    }
+
+    button {
+      font-family: var(--font-ui); background: none; border: none;
+      color: var(--text-secondary); cursor: pointer; position: relative;
+    }
+    button:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+    /* mid-pill: vertical-only halo (no overlap); outermost extend outward */
+    .icon-btn::before { content: ""; position: absolute; inset: -8px 0; }
+    .pill > .icon-btn:first-child::before { left: -8px; }
+    .pill > .icon-btn:last-child::before { right: -8px; }
+
+    /* ═════════ UNDERLYING SCR-01 (dimmed by the scrim) ═════════ */
+    .bar {
+      height: var(--control-bar-height); flex: none;
+      display: flex; align-items: center;
+      gap: var(--space-sm); padding: 0 var(--space-xs);
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-subtle);
+      position: relative;
+    }
+    .pill {
+      display: flex; align-items: center; gap: var(--cluster-gap);
+      padding: var(--cluster-pad);
+      background: var(--cluster-bg);
+      border: 1px solid var(--cluster-border);
+      border-radius: var(--cluster-radius);
+      position: relative; z-index: 1; flex: none;
+    }
+    .pill .icon-btn {
+      width: var(--control-h-sm); height: var(--control-h-sm);
+      display: flex; align-items: center; justify-content: center;
+      border-radius: var(--cluster-radius);
+    }
+    .btn-play {
+      /* accent-strong fill: white glyph needs the darker accent for AA */
+      background: var(--accent-strong); color: var(--text-on-accent);
+    }
+    .split { display: flex; align-items: center; }
+    .split .icon-btn.chev { width: 14px; }
+    .tts-btn {
+      height: var(--control-h-sm); padding: 0 var(--space-sm);
+      display: flex; align-items: center; gap: 4px;
+      border-radius: var(--cluster-radius);
+      font-size: var(--font-size-xs); font-weight: 600; letter-spacing: 0.02em;
+    }
+    .ground {
+      flex: 1; min-width: var(--drag-bar-min-gap); align-self: stretch;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .status {
+      pointer-events: none;
+      display: flex; align-items: center; gap: var(--space-sm);
+      font-size: var(--font-size-sm); color: var(--text-secondary);
+    }
+    .status .dot {
+      width: 7px; height: 7px; border-radius: var(--cluster-radius);
+      background: var(--text-muted); flex: none; /* disconnected at boot */
+    }
+
+    .transcript {
+      flex: 1; overflow: hidden;
+      padding: var(--space-lg) var(--space-xl);
+      display: flex; flex-direction: column; gap: var(--space-md);
+    }
+    .seg {
+      background: var(--bg-glass);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: var(--space-sm) var(--space-lg);
+    }
+    .seg-meta {
+      display: flex; align-items: center; gap: var(--space-sm);
+      margin-bottom: var(--space-2xs); font-size: var(--font-size-xs);
+    }
+    .seg-speaker { color: var(--accent-speaker); font-weight: 600; }
+    .seg-time { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .seg-lang {
+      font-size: var(--font-size-xs); font-weight: 600; color: var(--text-muted);
+      border: 1px solid var(--border-subtle); border-radius: var(--radius-xs);
+      padding: 0 var(--space-2xs); line-height: 1.4;
+    }
+    .seg-original { font-size: var(--font-size-base); color: var(--text-primary); line-height: 1.55; }
+    .seg-translation {
+      margin-top: var(--space-2xs); padding-left: var(--space-sm);
+      border-left: 2px solid var(--accent-translation);
+      font-size: var(--font-size-base); color: var(--text-secondary); line-height: 1.55;
+    }
+
+    /* ═════════ MODAL LAYER ═════════ */
+    .scrim {
+      position: absolute; inset: 0; z-index: var(--z-overlay);
+      background: rgba(0, 0, 0, 0.5); /* 50% black scrim — guidelines allow 40–60% */
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-card {
+      width: 380px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--menu-shadow);
+      padding: var(--space-2xl);
+      display: flex; flex-direction: column; gap: var(--space-lg);
+    }
+    .modal-head { display: flex; align-items: center; gap: var(--space-lg); }
+    .modal-head svg { flex: none; color: var(--warning); }
+    .modal-head h3 { font-size: var(--font-size-xl); font-weight: 600; color: var(--text-primary); }
+    .modal-body {
+      font-size: var(--font-size-base); color: var(--text-secondary); line-height: 1.6;
+    }
+    .modal-actions {
+      display: flex; align-items: center; gap: var(--space-sm);
+      margin-top: var(--space-2xs);
+    }
+    .btn-discard {
+      height: var(--control-h-lg); padding: 0 var(--space-xl);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      color: var(--error); font-size: var(--font-size-base); font-weight: 600;
+      transition: background var(--transition-fast), border-color var(--transition-fast);
+      margin-right: auto; /* danger action separated from primary (destructive isolation) */
+    }
+    .btn-discard:hover { background: var(--bg-hover); border-color: var(--error); }
+    .btn-recover {
+      height: var(--control-h-lg); padding: 0 var(--space-xl);
+      border-radius: var(--radius-sm);
+      /* accent-strong fill: 12px white text needs the darker accent for AA */
+      background: var(--accent-strong); color: var(--text-on-accent);
+      font-size: var(--font-size-base); font-weight: 600;
+      transition: box-shadow var(--transition-fast);
+    }
+    /* hover: keep the fill, add a ring — never lighten a filled control */
+    .btn-recover:hover { box-shadow: 0 0 0 1px var(--accent-hover); }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════ STAGE — SCR-01 at boot, dimmed under recovery modal ═══════════ -->
+  <div class="stage" role="group" aria-label="Crash recovery dialog over the main overlay">
+
+    <!-- Underlying SCR-01 (idle boot state: play primary, Ready status) -->
+    <header class="bar" aria-hidden="true">
+      <div class="pill">
+        <button class="icon-btn" tabindex="-1" aria-label="Settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+      </div>
+      <div class="pill">
+        <button class="icon-btn btn-play" tabindex="-1" aria-label="Start translating">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+        </button>
+        <div class="split">
+          <button class="icon-btn" tabindex="-1" aria-label="Audio source: system audio">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+          </button>
+          <button class="icon-btn chev" tabindex="-1" aria-label="Choose audio source">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+          </button>
+        </div>
+        <button class="tts-btn" tabindex="-1" aria-label="Toggle TTS narration">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><line x1="9" y1="10" x2="15" y2="10" />
+          </svg>
+          <span>TTS</span>
+        </button>
+      </div>
+      <div class="ground">
+        <div class="status">
+          <span class="dot"></span><span>Ready</span>
+        </div>
+      </div>
+      <div class="pill">
+        <button class="icon-btn" tabindex="-1" aria-label="View saved sessions">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+        </button>
+        <button class="icon-btn" tabindex="-1" aria-label="More actions">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
+          </svg>
+        </button>
+      </div>
+      <div class="pill">
+        <button class="icon-btn" tabindex="-1" aria-label="Compact mode">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
+            <line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+        </button>
+        <button class="icon-btn" tabindex="-1" aria-label="Pin on top">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 17v5" />
+            <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76z" />
+          </svg>
+        </button>
+        <button class="icon-btn" tabindex="-1" aria-label="Minimize to taskbar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        </button>
+        <button class="icon-btn" tabindex="-1" aria-label="Close">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Orphan transcript content visible under the scrim -->
+    <div class="transcript" aria-hidden="true">
+      <article class="seg">
+        <div class="seg-meta">
+          <span class="seg-speaker">Speaker 1</span>
+          <span class="seg-time">17:52:40</span>
+          <span class="seg-lang">EN</span>
+        </div>
+        <p class="seg-original">Before we wrap up &mdash; the staging deploy is still blocked on the config review.</p>
+        <p class="seg-translation" lang="vi">Trước khi kết thúc &mdash; bản deploy staging vẫn đang bị chặn vì phần review cấu hình.</p>
+      </article>
+      <article class="seg">
+        <div class="seg-meta">
+          <span class="seg-speaker">Speaker 2</span>
+          <span class="seg-time">17:53:12</span>
+          <span class="seg-lang">EN</span>
+        </div>
+        <p class="seg-original">I&rsquo;ll approve it right after this call so we can ship tonight.</p>
+        <p class="seg-translation" lang="vi">Tôi sẽ duyệt ngay sau cuộc họp này để chúng ta kịp phát hành tối nay.</p>
+      </article>
+    </div>
+
+    <!-- Modal scrim + recovery dialog -->
+    <div class="scrim">
+      <div class="modal-card" role="alertdialog" aria-modal="true" aria-labelledby="rec-title" aria-describedby="rec-desc">
+        <div class="modal-head">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          </svg>
+          <h3 id="rec-title">Recover previous session?</h3>
+        </div>
+        <p class="modal-body" id="rec-desc">
+          An in-progress transcript from your last session was found &mdash; the app
+          didn&rsquo;t shut down cleanly. Recover it as a saved session, or discard it
+          permanently.
+        </p>
+        <div class="modal-actions">
+          <button class="btn-discard">Discard</button>
+          <button class="btn-recover" autofocus>Recover</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="mock-caption">
+    50% black scrim (guideline range 40&ndash;60%) &middot; Discard separated left, danger-styled &middot; Recover primary, autofocus<br />
+    Esc / scrim click = safe dismiss: closes the dialog without deleting, orphan transcript kept for next boot
+  </p>
+
+</body>
+</html>

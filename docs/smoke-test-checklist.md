@@ -38,19 +38,42 @@ completes the first pass.
 
 ## Toolbar and Settings (Phase 2)
 
-- [ ] Fresh launch — toolbar shows five visual groups separated by thin
-      dividers: app, transport, status, transcript, window
+- [ ] Fresh launch — toolbar shows 4 floating pill clusters (app · transport ·
+      library · window) on a bare bar; 8 visible controls, not 13
 - [ ] Click Start — status text turns "Connecting…" (amber) then "Listening"
       (green); an elapsed timer ("0:0X") ticks up beside it every second.
       Click Stop — elapsed clears, status returns to muted "Ready"
-- [ ] Copy / Export / Sessions icons sit grouped tight; Clear (trash) sits
-      after a visible gap; hovering Clear turns it red
 - [ ] Settings ▸ Display — an "Export Format" dropdown, full width, arrow
       visible and not covering the text
 - [ ] Sessions view — a folder icon sits beside the "Sessions" title;
       clicking it opens the transcripts folder
-- [ ] Dragging the window works from bar gaps, dividers, and the status area;
-      clicking any icon button activates it and does not drag
+- [ ] Dragging the window works from the bare bar ground between/around
+      pills; clicking any pill button activates it and does not drag
+
+## UI restyle — header pills + drag ground (op-260827-ui-restyle)
+
+- [ ] At 600px window width, in every state (idle, listening, recording,
+      compact-hidden bar revealed) a continuous bare strip is draggable
+      between the transport and library pills — grab and move the window
+- [ ] Repeat the same drag check at 680px (default) width
+- [ ] Start a recording session, then drag the window from the bar ground —
+      the window moves and the record button's pulse ring is unaffected
+- [ ] Click the mic split-button's ▾ chevron — a menu opens with System
+      audio / Microphone / Both, a check mark on the active source, and
+      Ctrl+1/2/3 hints; selecting an item switches source and closes the menu
+- [ ] Click the ⋯ (More actions) button in the library pill — a menu opens
+      with Copy transcript (Ctrl+C), Export… (Ctrl+E), a divider, then a
+      red-styled Clear transcript; each action closes the menu after running
+- [ ] With either menu open (idle placeholder state, and again while
+      Listening/recording), confirm the panel is fully opaque and nothing
+      behind it — placeholder text, mic icon, Ctrl+Enter chip, transcript
+      cards — paints on top of or bleeds through the menu; repeat once in
+      compact mode's hover-revealed bar
+- [ ] Press Ctrl+D to enter compact mode, then hover the top 6px strip — the
+      bar reveals with the same pill layout; Ctrl+D again exits compact
+- [ ] Click the pin button — icon highlights accent-colored and the window's
+      always-on-top state toggles (verify via alt-tabbing another window on
+      top of it)
 
 ## Window sizing and small fixes (Phase 5)
 

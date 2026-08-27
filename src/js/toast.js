@@ -8,6 +8,7 @@ export function showToast(message, type = 'success') {
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
+    toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
     toast.textContent = message;
     document.body.appendChild(toast);
 

@@ -1,0 +1,340 @@
+<!doctype html>
+<!--
+  SCR-02 — Settings (Translation tab active) — pilot mockup
+  Layout follows Mobbin refs (design-spec.md §7):
+    · Proton Pass settings — dark tabbed settings, card-grouped sections
+    · Uxcel settings tabs — pill tab row + single column body
+    · Discord call bar — header pills float on bare drag ground (kept from SCR-01 pattern)
+  Tokens: ../tokens.css exclusively. Structural layout px only (stage 680×400,
+  flex/positioning). Stage bg #0e0f16 = tauri.conf.json window background (kept
+  app value). Header keeps bare drag ground per design-spec §5 flow requirement
+  (≥ --drag-bar-min-gap continuous bare bar in every view).
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SCR-02 Settings — ui-restyle mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <style>
+    /* ————— mockup scaffolding (not part of the design) ————— */
+    :root { color-scheme: dark; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000; /* scaffolding backdrop only */
+      font-family: var(--font-ui);
+      color: var(--text-primary);
+      display: flex; flex-direction: column; align-items: center;
+      gap: 12px; padding: 40px 16px 80px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .mock-caption { font-size: var(--font-size-base); color: var(--text-secondary); }
+
+    /* ————— window stage: 680×400 at real size ————— */
+    .stage {
+      width: 680px; height: 400px; flex: none;
+      background: #0e0f16; /* tauri.conf window bg (kept) */
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      overflow: hidden; position: relative;
+      display: flex; flex-direction: column;
+    }
+
+    button {
+      font-family: var(--font-ui); background: none; border: none;
+      color: var(--text-secondary); cursor: pointer; position: relative;
+    }
+    button:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 2px solid var(--border-focus); outline-offset: 1px;
+    }
+    /* 44px min hit area inside the 42px bar: invisible padding extension.
+       Mid-pill buttons extend vertically only (no overlapping halos);
+       outermost pill buttons also extend outward horizontally. */
+    .icon-btn::before { content: ""; position: absolute; inset: -8px 0; }
+    .pill > .icon-btn:first-child::before { left: -8px; }
+    .pill > .icon-btn:last-child::before { right: -8px; }
+
+    /* ═════════ HEADER — 42px bar, pills on bare drag ground (kept) ═════════ */
+    .bar {
+      height: var(--control-bar-height); flex: none;
+      display: flex; align-items: center;
+      gap: var(--space-sm); padding: 0 var(--space-xs);
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-subtle);
+      position: relative;
+    }
+    .pill {
+      display: flex; align-items: center; gap: var(--cluster-gap);
+      padding: var(--cluster-pad);
+      background: var(--cluster-bg);
+      border: 1px solid var(--cluster-border);
+      border-radius: var(--cluster-radius);
+      position: relative; z-index: 1; flex: none;
+    }
+    .pill .icon-btn {
+      width: var(--control-h-sm); height: var(--control-h-sm);
+      display: flex; align-items: center; justify-content: center;
+      border-radius: var(--cluster-radius);
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+    .pill .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .pill .icon-btn:active { background: var(--bg-active); }
+    .save-btn {
+      height: var(--control-h-sm); padding: 0 var(--space-lg);
+      display: flex; align-items: center; gap: var(--space-2xs);
+      border-radius: var(--cluster-radius);
+      /* accent-strong fill: 12px white text needs the darker accent for AA */
+      background: var(--accent-strong); color: var(--text-on-accent);
+      font-size: var(--font-size-base); font-weight: 600;
+      transition: box-shadow var(--transition-fast);
+    }
+    /* hover: keep the fill, add a ring — never lighten a filled control */
+    .save-btn:hover { box-shadow: 0 0 0 1px var(--accent-hover); }
+    /* Bare drag ground center — title renders inert on the ground */
+    .ground {
+      flex: 1; min-width: var(--drag-bar-min-gap); align-self: stretch;
+      display: flex; align-items: center; justify-content: center;
+      /* data-tauri-drag-region in the app; title inside is inert */
+    }
+    .view-title {
+      pointer-events: none;
+      font-size: var(--font-size-base); font-weight: 600;
+      color: var(--text-secondary); letter-spacing: 0.02em;
+    }
+
+    /* ═════════ TAB ROW — pill tabs (Uxcel pattern) ═════════ */
+    .tabs {
+      flex: none; display: flex; gap: var(--space-2xs);
+      padding: var(--space-sm) var(--space-xl) 0;
+    }
+    .tab {
+      height: var(--control-h-sm); padding: 0 var(--space-lg);
+      border-radius: var(--cluster-radius);
+      font-size: var(--font-size-base); font-weight: 500;
+      color: var(--text-muted);
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+    .tab:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .tab[aria-selected="true"] {
+      background: var(--surface-3); color: var(--text-primary); font-weight: 600;
+    }
+
+    /* ═════════ BODY — card-grouped sections (Proton Pass pattern) ═════════ */
+    .body {
+      flex: 1; overflow-y: auto;
+      padding: var(--space-lg) var(--space-xl) var(--space-2xl);
+      display: flex; flex-direction: column; gap: var(--space-lg);
+      scrollbar-width: thin;
+    }
+    .card {
+      background: var(--bg-glass);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: var(--space-lg);
+      display: flex; flex-direction: column; gap: var(--space-sm);
+    }
+    .field-label {
+      font-size: var(--font-size-xs); font-weight: 600;
+      color: var(--text-secondary); letter-spacing: 0.03em; text-transform: uppercase;
+      display: flex; align-items: center; gap: var(--space-sm);
+    }
+    .required-badge {
+      font-size: var(--font-size-xs); font-weight: 600; text-transform: none;
+      color: var(--warning); border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xs); padding: 0 var(--space-2xs); line-height: 1.5;
+    }
+    .hint { font-size: var(--font-size-xs); color: var(--text-muted); line-height: 1.5; }
+    .hint a { color: var(--accent); text-decoration: none; }
+    .hint a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+    select, input[type="password"], input[type="text"] {
+      font-family: var(--font-ui); font-size: var(--font-size-base);
+      color: var(--text-primary);
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      height: var(--control-h-lg); padding: 0 var(--space-sm);
+      width: 100%;
+    }
+    select:hover, input:hover { border-color: var(--border-light); }
+
+    .input-group { display: flex; gap: var(--space-2xs); align-items: center; }
+    .input-group input { flex: 1; letter-spacing: 0.18em; }
+    .eye-btn {
+      width: var(--control-h-lg); height: var(--control-h-lg); flex: none;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+      transition: background var(--transition-fast);
+    }
+    .eye-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    .radio-row, .check-row {
+      display: flex; align-items: center; gap: var(--space-sm);
+      font-size: var(--font-size-base); color: var(--text-primary);
+      min-height: 24px; cursor: pointer;
+    }
+    .radio-row input, .check-row input { accent-color: var(--accent); width: 14px; height: 14px; }
+    .radio-row .sub, .check-row .sub { color: var(--text-muted); font-size: var(--font-size-xs); }
+
+    .field-row { display: flex; gap: var(--space-lg); }
+    .field-row .field { flex: 1; display: flex; flex-direction: column; gap: var(--space-2xs); }
+    .arrow-sep {
+      align-self: flex-end; height: var(--control-h-lg);
+      display: flex; align-items: center; color: var(--text-muted); flex: none;
+    }
+
+    .slider-row { display: flex; align-items: center; gap: var(--space-lg); }
+    input[type="range"] {
+      flex: 1; accent-color: var(--accent); height: 4px;
+    }
+    .slider-value {
+      font-size: var(--font-size-base); color: var(--text-secondary);
+      font-variant-numeric: tabular-nums; min-width: 52px; text-align: right;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════ STAGE — SCR-02 Settings, Translation tab ═══════════ -->
+  <div class="stage" role="group" aria-label="Settings view, Translation tab active">
+
+    <!-- Header: back pill · bare drag ground with inert title · Save pill -->
+    <header class="bar">
+      <div class="pill">
+        <button class="icon-btn" aria-label="Back to overlay (Esc)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="ground">
+        <span class="view-title">Settings</span>
+      </div>
+
+      <div class="pill">
+        <button class="save-btn" aria-label="Save and close settings">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          Save
+        </button>
+      </div>
+    </header>
+
+    <!-- Tab row (Uxcel pill tabs) -->
+    <nav class="tabs" role="tablist" aria-label="Settings sections">
+      <button class="tab" role="tab" aria-selected="true">Translation</button>
+      <button class="tab" role="tab" aria-selected="false">Display</button>
+      <button class="tab" role="tab" aria-selected="false">TTS</button>
+      <button class="tab" role="tab" aria-selected="false">AI</button>
+      <button class="tab" role="tab" aria-selected="false">About</button>
+    </nav>
+
+    <!-- Card-grouped sections (Proton Pass) -->
+    <div class="body" role="tabpanel" aria-label="Translation settings">
+
+      <section class="card">
+        <label class="field-label" for="sel-engine">Engine</label>
+        <select id="sel-engine" aria-describedby="hint-engine">
+          <option selected>Soniox API (Cloud)</option>
+        </select>
+        <p class="hint" id="hint-engine">Real-time, 70+ languages, ~$0.12/hr</p>
+      </section>
+
+      <section class="card">
+        <label class="field-label" for="input-key">Soniox API Key <span class="required-badge">Required</span></label>
+        <div class="input-group">
+          <!-- masked placeholder dots only — never a real-looking key -->
+          <input type="password" id="input-key" value="••••••••••••••••••••" aria-describedby="hint-key" autocomplete="off" readonly />
+          <button class="eye-btn" aria-label="Show API key" aria-pressed="false">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+        </div>
+        <p class="hint" id="hint-key">Get key at <a href="#">console.soniox.com</a></p>
+      </section>
+
+      <section class="card" role="radiogroup" aria-labelledby="lbl-ttype">
+        <span class="field-label" id="lbl-ttype">Translation Type</span>
+        <label class="radio-row">
+          <input type="radio" name="ttype" checked />
+          One-way <span class="sub">— translate all speech to the target language</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="ttype" />
+          Two-way <span class="sub">— translate between two languages</span>
+        </label>
+      </section>
+
+      <section class="card" role="group" aria-labelledby="lbl-langs">
+        <span class="field-label" id="lbl-langs">Languages</span>
+        <div class="field-row">
+          <div class="field">
+            <label class="hint" for="sel-src">Source</label>
+            <select id="sel-src">
+              <option>Auto-detect</option>
+              <option selected>English</option>
+              <option>Japanese</option>
+              <option>Korean</option>
+              <option>Vietnamese</option>
+            </select>
+          </div>
+          <span class="arrow-sep" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+            </svg>
+          </span>
+          <div class="field">
+            <label class="hint" for="sel-tgt">Target</label>
+            <select id="sel-tgt">
+              <option selected>Vietnamese</option>
+              <option>English</option>
+              <option>Japanese</option>
+              <option>Korean</option>
+            </select>
+          </div>
+        </div>
+        <label class="check-row">
+          <input type="checkbox" checked />
+          Strict language detection <span class="sub">— ignore speech outside the selected languages</span>
+        </label>
+      </section>
+
+      <section class="card">
+        <label class="field-label" for="range-delay">Endpoint Delay</label>
+        <div class="slider-row">
+          <input type="range" id="range-delay" min="200" max="2000" step="100" value="800" aria-valuetext="800 milliseconds" aria-describedby="hint-delay" />
+          <span class="slider-value">800 ms</span>
+        </div>
+        <p class="hint" id="hint-delay">How long a pause ends a sentence. Lower = snappier, higher = fewer split sentences.</p>
+      </section>
+
+      <section class="card" role="radiogroup" aria-labelledby="lbl-asource">
+        <span class="field-label" id="lbl-asource">Audio Source</span>
+        <label class="radio-row">
+          <input type="radio" name="asource" checked />
+          System audio <span class="sub">— meetings, videos, calls (Ctrl+1)</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="asource" />
+          Microphone <span class="sub">— your own voice (Ctrl+2)</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="asource" />
+          Both <span class="sub">— mixed system + mic (Ctrl+3)</span>
+        </label>
+      </section>
+
+    </div>
+  </div>
+
+  <p class="mock-caption">Translation tab active &middot; card-grouped sections &middot; header keeps bare drag ground</p>
+
+</body>
+</html>

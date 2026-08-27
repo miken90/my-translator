@@ -1,0 +1,89 @@
+/* My Translator — ui-restyle design tokens
+ * Machine source for design-spec.md §5. Mirrors src/styles/main.css at 728f8b2;
+ * NEW = proposed by this restyle, everything else kept unchanged (Quiet Glass,
+ * AA-verified at every opacity 20–100%). */
+:root {
+  /* Backgrounds (kept) */
+  --bg-primary: rgba(14, 15, 22, 0.92);
+  --bg-secondary: rgba(24, 25, 34, 0.94);
+  --bg-glass: rgba(30, 32, 46, 0.68);
+  --bg-input: rgba(38, 40, 55, 0.72);
+  --bg-hover: rgba(64, 68, 90, 0.55);
+  --bg-active: rgba(86, 92, 120, 0.55);
+
+  /* Borders (kept) */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.14);
+  --border-focus: rgba(120, 150, 235, 0.55);
+
+  /* Text (kept — 17.6:1 / 10.05:1 / 7.23:1 on bg-primary) */
+  --text-primary: rgba(255, 255, 255, 0.96);
+  --text-secondary: rgba(255, 255, 255, 0.72);
+  --text-muted: rgba(255, 255, 255, 0.60);
+  --text-on-accent: #fff;
+
+  /* Surfaces (kept) */
+  --surface-1: rgba(255, 255, 255, 0.05);
+  --surface-2: rgba(255, 255, 255, 0.07);
+  --surface-3: rgba(255, 255, 255, 0.12);
+
+  /* Accents (kept) */
+  --accent: #7a97e0;
+  --accent-hover: #94aeee;
+  --accent-glow: rgba(122, 151, 224, 0.16);
+  --accent-alt: #74b0d8;
+  --accent-speaker: #e5b165;
+  --accent-minimize-hover: #eccc63;
+  --accent-translation: rgba(240, 150, 190, 0.60);
+  /* NEW — fill color for accent-filled buttons: white 12px text on #7a97e0 is
+     ~2.9:1; #4a63a8 lifts white text to ≥4.5:1 while hover keeps the familiar
+     lighter accent as a ring, not a fill. Text-on-bg tokens stay untouched. */
+  --accent-strong: #4a63a8;
+  --success: #5fd694;
+  --warning: #eec158;
+  --error: #f28b8b;
+  --error-strong: #e85c5c;
+
+  /* NEW — header pill clusters (Meet/Discord call-bar pattern).
+     Clusters float on a bare drag bar; the gap between them IS the drag
+     surface, so cluster bg must read as "object", bar bg as "ground". */
+  --cluster-bg: rgba(30, 32, 46, 0.85);
+  --cluster-border: rgba(255, 255, 255, 0.10);
+  --cluster-radius: 999px;            /* full pill */
+  --cluster-gap: 2px;                 /* between buttons inside a pill */
+  --cluster-pad: 3px;                 /* pill inner padding */
+  --drag-bar-min-gap: 48px;           /* guaranteed bare drag width between clusters */
+
+  /* NEW — overflow menu (Tana/Perplexity pattern) */
+  --menu-bg: rgba(24, 25, 34, 0.97);
+  --menu-border: rgba(255, 255, 255, 0.12);
+  --menu-radius: 10px;
+  --menu-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --menu-item-h: 30px;
+
+  /* Radii (kept) */
+  --radius-2xs: 2px; --radius-xs: 4px; --radius-sm: 6px;
+  --radius-md: 10px; --radius-lg: 14px;
+
+  /* Spacing (kept — md==sm collision is intentional in Concept A) */
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 4px; --space-sm: 8px;
+  --space-md: 8px; --space-lg: 12px; --space-xl: 16px; --space-2xl: 20px;
+  --space-3xl: 24px;
+
+  /* Type (kept; Inter already the app face) */
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-size-xs: 11px; --font-size-sm: 11px; --font-size-base: 12px;
+  --font-size-md: 14px; --font-size-lg: 14px; --font-size-xl: 16px;
+
+  /* Layout (kept) */
+  --control-bar-height: 42px;
+  --control-h-sm: 28px; --control-h-md: 30px; --control-h-lg: 32px;
+  --z-floating: 10; --z-compact-reveal: 99; --z-compact-catch: 100;
+  --z-overlay: 1000;
+  /* NEW — menus sit above floating, below modal overlay */
+  --z-menu: 500;
+
+  /* Motion (kept) */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
